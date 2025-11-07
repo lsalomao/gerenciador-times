@@ -67,8 +67,8 @@ sudo venv/bin/pip install -r requirements.txt
 
 ### 5. Criar arquivo .env
 ```bash
-# Gerar SECRET_KEY
-SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+# Gerar SECRET_KEY usando o Django do ambiente virtual
+SECRET_KEY=$(venv/bin/python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
 
 # Criar arquivo .env
 sudo tee .env << EOF

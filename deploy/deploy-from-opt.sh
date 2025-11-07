@@ -48,7 +48,7 @@ $APP_DIR/venv/bin/pip install -r requirements.txt
 echo ""
 echo "4. Configurando variáveis de ambiente..."
 if [ ! -f "$APP_DIR/.env" ]; then
-    SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+    SECRET_KEY=$($APP_DIR/venv/bin/python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
     cat > $APP_DIR/.env << EOF
 DEBUG=False
 SECRET_KEY=$SECRET_KEY
