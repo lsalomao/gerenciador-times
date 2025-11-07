@@ -1,0 +1,49 @@
+{% extends 'volei/base.html' %}
+
+{% block title %}Home - Gerenciador de Times{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="jumbotron bg-light p-5 rounded">
+            <h1 class="display-4">Bem-vindo ao Gerenciador de Times de Vôlei</h1>
+            <p class="lead">Sistema para organizar e equilibrar times de vôlei semanais.</p>
+            <hr class="my-4">
+            <p>Gerencie jogadores, confirme presenças e forme times equilibrados automaticamente.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-people-fill" style="font-size: 3rem; color: #0d6efd;"></i>
+                <h5 class="card-title mt-3">Jogadores</h5>
+                <p class="card-text">Cadastre e gerencie os jogadores do time.</p>
+                <a href="{% url 'jogador_list' %}" class="btn btn-primary">Acessar</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check-fill" style="font-size: 3rem; color: #198754;"></i>
+                <h5 class="card-title mt-3">Presenças</h5>
+                <p class="card-text">Confirme quem vai jogar na próxima partida.</p>
+                <a href="{% url 'presenca_list' %}" class="btn btn-success">Acessar</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-trophy-fill" style="font-size: 3rem; color: #ffc107;"></i>
+                <h5 class="card-title mt-3">Times</h5>
+                <p class="card-text">Forme e gerencie os times equilibrados.</p>
+                <a href="{% url 'time_list' %}" class="btn btn-warning">Acessar</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

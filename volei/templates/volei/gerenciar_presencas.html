@@ -1,0 +1,61 @@
+{% extends 'volei/base.html' %}
+
+{% block title %}Gerenciar Presenças{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="bi bi-calendar-check"></i> Gerenciar Presenças</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="data" class="form-label">Data do Jogo</label>
+                        <input type="date" class="form-control" id="data" name="data" value="{{ data_selecionada|date:'Y-m-d' }}" required>
+                    </div>
+
+                    <h5 class="mb-3">Marque os jogadores presentes:</h5>
+                    
+                    <div class="row">
+                        {% for jogador in jogadores %}
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   name="jogador_{{ jogador.id }}" 
+                                                   id="jogador_{{ jogador.id }}"
+                                                   {% if jogador.id in presentes %}checked{% endif %}>
+                                            <label class="form-check-label" for="jogador_{{ jogador.id }}">
+                                                {{ jogador.nome }}
+                                                <span class="badge bg-info">Nível {{ jogador.nivel }}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="col-12">
+                                <p class="text-center text-muted">Nenhum jogador ativo cadastrado.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'presenca_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-save"></i> Salvar Presenças
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

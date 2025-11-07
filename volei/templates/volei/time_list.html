@@ -1,0 +1,76 @@
+{% extends 'volei/base.html' %}
+
+{% block title %}Times{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2><i class="bi bi-trophy-fill"></i> Times</h2>
+            <a href="{% url 'gerar_times' %}" class="btn btn-warning">
+                <i class="bi bi-shuffle"></i> Gerar Times
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                {% if times_por_data %}
+                    {% for data, times in times_por_data.items %}
+                        <div class="mb-5">
+                            <h4 class="border-bottom pb-2 mb-4">
+                                <i class="bi bi-calendar3"></i> {{ data|date:"d/m/Y" }}
+                            </h4>
+                            <div class="row">
+                                {% for time in times %}
+                                    <div class="col-md-6 mb-4">
+                                        <div class="card border-primary">
+                                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                                <h5 class="mb-0">{{ time.nome }}</h5>
+                                                <span class="badge bg-light text-dark">Soma: {{ time.soma_niveis }}</span>
+                                            </div>
+                                            <div class="card-body">
+                                                <h6 class="text-primary"><i class="bi bi-people-fill"></i> Titulares:</h6>
+                                                <ul class="list-group mb-3">
+                                                    {% for jogador in time.jogadores.all %}
+                                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                            {{ jogador.nome }}
+                                                            <span class="badge bg-info">Nível {{ jogador.nivel }}</span>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                                
+                                                {% if time.reservas.all %}
+                                                    <h6 class="text-secondary"><i class="bi bi-person-plus-fill"></i> Reserva:</h6>
+                                                    <ul class="list-group mb-3">
+                                                        {% for reserva in time.reservas.all %}
+                                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                                {{ reserva.nome }}
+                                                                <span class="badge bg-secondary">Nível {{ reserva.nivel }}</span>
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% endif %}
+                                                
+                                                <div class="d-flex justify-content-between">
+                                                    <a href="{% url 'editar_time' time.pk %}" class="btn btn-sm btn-warning">
+                                                        <i class="bi bi-pencil"></i> Editar
+                                                    </a>
+                                                    <a href="{% url 'excluir_time' time.pk %}" class="btn btn-sm btn-danger">
+                                                        <i class="bi bi-trash"></i> Excluir
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-center text-muted">Nenhum time formado ainda. Clique em "Gerar Times" para começar.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

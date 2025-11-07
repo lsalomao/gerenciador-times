@@ -1,0 +1,29 @@
+{% extends 'volei/base.html' %}
+
+{% block title %}Excluir Time{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h4>Confirmar Exclusão</h4>
+            </div>
+            <div class="card-body">
+                <p>Tem certeza que deseja excluir o <strong>{{ time.nome }}</strong> da data <strong>{{ time.data|date:"d/m/Y" }}</strong>?</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'time_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Confirmar Exclusão
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
