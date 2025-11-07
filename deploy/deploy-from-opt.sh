@@ -125,8 +125,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 EOF
@@ -139,9 +137,6 @@ if nginx -t 2>&1 | grep -q "test is successful"; then
     echo "✅ Nginx configurado e recarregado"
 else
     echo "⚠️  Aviso: Há problemas na configuração geral do Nginx"
-    echo "Tentando recarregar mesmo assim..."
-    systemctl reload nginx || true
-    echo "Verifique manualmente: sudo nginx -t"
 fi
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -153,7 +148,7 @@ EOF
 ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
 
 if nginx -t; then
-    systemctl reload nginx
+    systemctl.reload nginx
     echo "✅ Nginx configurado e recarregado"
 else
     echo "❌ Erro na configuração do Nginx"
