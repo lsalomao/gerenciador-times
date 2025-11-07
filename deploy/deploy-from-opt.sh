@@ -75,6 +75,12 @@ if [ -f "$APP_DIR/db.sqlite3" ]; then
 fi
 
 echo ""
+echo "Preparando diretório de logs do Gunicorn..."
+mkdir -p /var/log/gunicorn
+chown -R www-data:www-data /var/log/gunicorn
+chmod -R 755 /var/log/gunicorn
+
+echo ""
 echo "7. Configurando Gunicorn service..."
 cp $APP_DIR/deploy/gunicorn.service /etc/systemd/system/volei-gunicorn.service
 systemctl daemon-reload
