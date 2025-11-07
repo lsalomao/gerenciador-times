@@ -98,6 +98,10 @@ fi
 
 echo ""
 echo "8. Configurando Nginx (temporário sem SSL)..."
+
+# Remover link simbólico se já existir
+rm -f /etc/nginx/sites-enabled/$DOMAIN
+
 cat > /etc/nginx/sites-available/$DOMAIN << 'EOF'
 server {
     listen 80;
@@ -118,6 +122,25 @@ server {
     location / {
         proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+
+echo "Testando configuração do Nginx..."
+if nginx -t 2>&1 | grep -q "test is successful"; then
+    systemctl reload nginx
+    echo "✅ Nginx configurado e recarregado"
+else
+    echo "⚠️  Aviso: Há problemas na configuração geral do Nginx"
+    echo "Tentando recarregar mesmo assim..."
+    systemctl reload nginx || true
+    echo "Verifique manualmente: sudo nginx -t"
+fi
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
