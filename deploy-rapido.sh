@@ -24,8 +24,10 @@ if [ -z "$DOMAIN" ]; then
     exit 1
 fi
 
+APP_DIR=$(pwd)
+
 echo ""
-echo "📦 1/8 - Instalando Docker..."
+echo "📦 1/9 - Instalando Docker..."
 if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
     sh get-docker.sh
@@ -36,17 +38,16 @@ else
 fi
 
 echo ""
-echo "📁 2/8 - Criando diretórios..."
-mkdir -p certbot/conf certbot/www
-chmod -R 755 certbot
+echo "📁 2/9 - Criando diretórios..."
+mkdir -p staticfiles media /var/www/certbot
+chmod -R 755 staticfiles media
 
 echo ""
-echo "🔐 3/8 - Configurando .env..."
+echo "🔐 3/9 - Configurando .env..."
 if [ ! -f ".env" ]; then
     cp .env.example .env
 
     SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" 2>/dev/null || openssl rand -hex 50)
-    # Escapa caracteres que podem quebrar o comando sed (/, &)
     SECRET_KEY=$(echo "$SECRET_KEY" | sed 's/[\/&]/\\&/g')
 
     sed -i "s|SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|g" .env
@@ -64,15 +65,18 @@ else
 fi
 
 echo ""
-echo "🔧 4/8 - Atualizando configuração do Nginx..."
-sed -i "s|volei.ledtech.app|$DOMAIN|g" sites-available/volei
+echo "🔧 4/9 - Configurando Nginx do sistema..."
+sed -i "s|volei\.ledtech\.app|$DOMAIN|g" sites-available/volei
+cp sites-available/volei /etc/nginx/sites-available/$DOMAIN
+ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
 
 echo ""
-echo "🏗️  5/8 - Construindo containers..."
+echo "🏗️  5/9 - Construindo containers..."
 docker-compose build
 
 echo ""
-echo "🚀 6/8 - Iniciando containers..."
+echo "🚀 6/9 - Iniciando containers..."
 docker-compose up -d
 
 echo ""
@@ -80,17 +84,22 @@ echo "⏳ Aguardando banco de dados iniciar..."
 sleep 10
 
 echo ""
-echo "📊 7/8 - Executando migrações..."
+echo "📊 7/9 - Executando migrações..."
 docker-compose exec -T web python manage.py migrate
 
 echo ""
-echo "📦 8/8 - Coletando arquivos estáticos..."
+echo "📦 8/9 - Coletando arquivos estáticos..."
 docker-compose exec -T web python manage.py collectstatic --noinput
 
 echo ""
-echo "🔒 Configurando SSL..."
-docker-compose run --rm certbot certonly --webroot \
-  --webroot-path=/var/www/certbot \
+echo "🔗 Copiando arquivos estáticos para acesso do Nginx..."
+docker cp volei_web:/app/staticfiles $APP_DIR/
+docker cp volei_web:/app/media $APP_DIR/ 2>/dev/null || mkdir -p $APP_DIR/media
+chmod -R 755 $APP_DIR/staticfiles $APP_DIR/media
+
+echo ""
+echo "🔒 9/9 - Configurando SSL com Certbot..."
+certbot certonly --nginx \
   --email $EMAIL \
   --agree-tos \
   --no-eff-email \
@@ -98,8 +107,8 @@ docker-compose run --rm certbot certonly --webroot \
   -d www.$DOMAIN
 
 echo ""
-echo "🔄 Reiniciando Nginx com SSL..."
-docker-compose restart nginx
+echo "🔄 Reiniciando Nginx..."
+systemctl restart nginx
 
 echo ""
 echo "=========================================="
