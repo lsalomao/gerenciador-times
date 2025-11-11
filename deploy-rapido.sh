@@ -7,7 +7,7 @@ echo "🚀 Deploy Rápido - Gerenciador de Vôlei"
 echo "=========================================="
 echo ""
 
-if [ "$EUID" -ne 0 ]; then 
+if [ "$EUID" -ne 0 ]; then
     echo "❌ Execute como root: sudo ./deploy-rapido.sh"
     exit 1
 fi
@@ -44,17 +44,19 @@ echo ""
 echo "🔐 3/8 - Configurando .env..."
 if [ ! -f ".env" ]; then
     cp .env.example .env
-    
-    SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" 2>/dev/null || openssl rand -base64 50)
-    
+
+    SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" 2>/dev/null || openssl rand -hex 50)
+    # Escapa caracteres que podem quebrar o comando sed (/, &)
+    SECRET_KEY=$(echo "$SECRET_KEY" | sed 's/[\/&]/\\&/g')
+
     sed -i "s|SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|g" .env
     sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,www.$DOMAIN|g" .env
     sed -i "s|CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=https://$DOMAIN,https://www.$DOMAIN|g" .env
-    
-    DB_PASSWORD=$(openssl rand -base64 32)
+
+    DB_PASSWORD=$(openssl rand -hex 32)
     sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|g" .env
     sed -i "s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$DB_PASSWORD|g" .env
-    
+
     chmod 600 .env
     echo "✅ Arquivo .env criado com senhas geradas automaticamente"
 else
