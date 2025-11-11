@@ -6,6 +6,8 @@ echo "🔧 Atualizando configuração para usar Nginx do sistema..."
 echo "Parando containers..."
 docker-compose down --remove-orphans
 
+
+
 # Backup do docker-compose.yml antigo
 cp docker-compose.yml docker-compose.yml.backup
 
