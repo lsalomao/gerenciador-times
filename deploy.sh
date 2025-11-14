@@ -13,6 +13,7 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
+
 DOMAIN="volei.ledtech.app"
 read -p "Digite o email para SSL (ex: seu@email.com): " EMAIL
 read -sp "Digite a senha do banco de dados: " DB_PASSWORD
