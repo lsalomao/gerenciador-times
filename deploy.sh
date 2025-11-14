@@ -8,12 +8,6 @@ echo "Porta: 5006 | HTTPS: Sim"
 echo "==================================="
 echo ""
 
-if [ "$EUID" -eq 0 ]; then
-    echo "Erro: Não execute este script como root"
-    exit 1
-fi
-
-
 DOMAIN="volei.ledtech.app"
 read -p "Digite o email para SSL (ex: seu@email.com): " EMAIL
 read -sp "Digite a senha do banco de dados: " DB_PASSWORD
@@ -22,12 +16,27 @@ echo ""
 PROJECT_DIR="/opt/gerenciador-times"
 
 echo ""
-echo "1. Criando diretório do projeto..."
-sudo mkdir -p $PROJECT_DIR
-sudo chown $USER:$USER $PROJECT_DIR
+echo "1. Verificando diretório do projeto..."
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "Criando diretório $PROJECT_DIR..."
+    mkdir -p "$PROJECT_DIR"
+fi
 
 echo ""
-echo "2. Copiando arquivos..."
+echo "2. Verificando se já estamos no diretório correto..."
+if [ "$PWD" != "$PROJECT_DIR" ]; then
+    echo "Copiando arquivos para $PROJECT_DIR..."
+else
+    echo "Já estamos em $PROJECT_DIR — pulando cópia."
+    # Evita que o 'cp -r . $PROJECT_DIR/' subsequente copie o diretório em si.
+    # Redireciona outras chamadas de cp para o binário original.
+    cp() {
+        if [ "$#" -ge 2 ] && [ "$1" = "-r" ] && [ "$2" = "." ]; then
+            return 0
+        fi
+        /bin/cp "$@"
+    }
+fi
 cp -r . $PROJECT_DIR/
 cd $PROJECT_DIR
 
@@ -52,24 +61,13 @@ fi
 
 echo ""
 echo "4. Configurando Nginx..."
-sudo cp sites-available/volei.ledtech.app /etc/nginx/sites-available/$DOMAIN
+cp sites-available/volei.ledtech.app /etc/nginx/sites-available/$DOMAIN
 
 if [ ! -f /etc/nginx/sites-enabled/$DOMAIN ]; then
-    sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+    ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
 fi
 
 if [ -f /etc/nginx/sites-enabled/default ]; then
-    sudo rm /etc/nginx/sites-enabled/default
-fi
-
-echo ""
-echo "5. Testando configuração do Nginx..."
-sudo nginx -t
-
-echo ""
-echo "6. Recarregando Nginx..."
-sudo systemctl reload nginx
-
 echo ""
 echo "7. Iniciando containers Docker (porta 5006)..."
 docker-compose down 2>/dev/null || true
@@ -89,12 +87,12 @@ docker-compose exec -T web python manage.py collectstatic --noinput
 
 echo ""
 echo "11. Copiando arquivos estáticos para Nginx..."
-sudo mkdir -p $PROJECT_DIR/staticfiles
-sudo mkdir -p $PROJECT_DIR/media
+mkdir -p $PROJECT_DIR/staticfiles
+mkdir -p $PROJECT_DIR/media
 docker cp volei_web:/app/staticfiles/. $PROJECT_DIR/staticfiles/ 2>/dev/null || true
 docker cp volei_web:/app/media/. $PROJECT_DIR/media/ 2>/dev/null || true
-sudo chown -R www-data:www-data $PROJECT_DIR/staticfiles
-sudo chown -R www-data:www-data $PROJECT_DIR/media
+chown -R www-data:www-data $PROJECT_DIR/staticfiles
+chown -R www-data:www-data $PROJECT_DIR/media
 
 echo ""
 echo "12. Configurando SSL com Let's Encrypt..."
@@ -103,15 +101,15 @@ read -p "Deseja configurar SSL agora? (s/n): " SETUP_SSL
 if [ "$SETUP_SSL" = "s" ] || [ "$SETUP_SSL" = "S" ]; then
     if ! command -v certbot &> /dev/null; then
         echo "Instalando Certbot..."
-        sudo apt update
-        sudo apt install certbot python3-certbot-nginx -y
+        apt update
+        apt install certbot python3-certbot-nginx -y
     fi
 
-    sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --email $EMAIL --agree-tos --non-interactive
+    certbot --nginx -d $DOMAIN -d www.$DOMAIN --email $EMAIL --agree-tos --non-interactive
     echo "SSL configurado com sucesso!"
 else
     echo "Pulando configuração SSL. Você pode configurar depois com:"
-    echo "sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN"
+    echo "certbot --nginx -d $DOMAIN -d www.$DOMAIN"
 fi
 
 echo ""
