@@ -4,15 +4,16 @@ set -e
 
 echo "==================================="
 echo "Deploy - Gerenciador de Times"
+echo "Porta: 5006 | HTTPS: Sim"
 echo "==================================="
 echo ""
 
-if [ "$EUID" -eq 0 ]; then 
+if [ "$EUID" -eq 0 ]; then
     echo "Erro: Não execute este script como root"
     exit 1
 fi
 
-read -p "Digite o domínio (ex: volei.ledtech.app): " DOMAIN
+DOMAIN="volei.ledtech.app"
 read -p "Digite o email para SSL (ex: seu@email.com): " EMAIL
 read -sp "Digite a senha do banco de dados: " DB_PASSWORD
 echo ""
@@ -33,16 +34,16 @@ echo ""
 echo "3. Configurando variáveis de ambiente..."
 if [ ! -f .env ]; then
     cp .env.example .env
-    
+
     SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
-    
+
     sed -i "s|DEBUG=.*|DEBUG=False|g" .env
     sed -i "s|SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|g" .env
     sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,www.$DOMAIN,localhost,127.0.0.1|g" .env
     sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|g" .env
     sed -i "s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$DB_PASSWORD|g" .env
     sed -i "s|CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=https://$DOMAIN,https://www.$DOMAIN|g" .env
-    
+
     echo "Arquivo .env configurado!"
 else
     echo "Arquivo .env já existe, pulando..."
@@ -50,9 +51,7 @@ fi
 
 echo ""
 echo "4. Configurando Nginx..."
-sudo cp sites-available/volei /etc/nginx/sites-available/$DOMAIN
-sudo sed -i "s|volei.ledtech.app|$DOMAIN|g" /etc/nginx/sites-available/$DOMAIN
-sudo sed -i "s|www.volei.ledtech.app|www.$DOMAIN|g" /etc/nginx/sites-available/$DOMAIN
+sudo cp sites-available/volei.ledtech.app /etc/nginx/sites-available/$DOMAIN
 
 if [ ! -f /etc/nginx/sites-enabled/$DOMAIN ]; then
     sudo ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
@@ -71,7 +70,7 @@ echo "6. Recarregando Nginx..."
 sudo systemctl reload nginx
 
 echo ""
-echo "7. Iniciando containers Docker..."
+echo "7. Iniciando containers Docker (porta 5006)..."
 docker-compose down 2>/dev/null || true
 docker-compose up -d --build
 
@@ -106,7 +105,7 @@ if [ "$SETUP_SSL" = "s" ] || [ "$SETUP_SSL" = "S" ]; then
         sudo apt update
         sudo apt install certbot python3-certbot-nginx -y
     fi
-    
+
     sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --email $EMAIL --agree-tos --non-interactive
     echo "SSL configurado com sucesso!"
 else
@@ -119,12 +118,18 @@ echo "==================================="
 echo "Deploy concluído com sucesso!"
 echo "==================================="
 echo ""
+echo "Aplicação rodando em:"
+echo "- HTTP: http://$DOMAIN (redireciona para HTTPS)"
+echo "- HTTPS: https://$DOMAIN"
+echo "- Porta interna: 5006"
+echo ""
 echo "Próximos passos:"
 echo "1. Criar superusuário: docker-compose exec web python manage.py createsuperuser"
-echo "2. Acessar: http://$DOMAIN (ou https://$DOMAIN se configurou SSL)"
+echo "2. Acessar: https://$DOMAIN"
 echo ""
 echo "Comandos úteis:"
 echo "- Ver logs: docker-compose logs -f"
 echo "- Reiniciar: docker-compose restart"
 echo "- Parar: docker-compose down"
+echo "- Status: docker-compose ps"
 echo ""

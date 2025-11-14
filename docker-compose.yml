@@ -10,7 +10,7 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:5006:8000"
     env_file:
       - .env
     command: gunicorn --bind 0.0.0.0:8000 --workers 3 gerenciador_volei.wsgi:application
