@@ -19,26 +19,18 @@ echo ""
 echo "1. Verificando diretório do projeto..."
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "Criando diretório $PROJECT_DIR..."
-    mkdir -p "$PROJECT_DIR"
+    mkdir -p $PROJECT_DIR
 fi
 
 echo ""
 echo "2. Verificando se já estamos no diretório correto..."
 if [ "$PWD" != "$PROJECT_DIR" ]; then
     echo "Copiando arquivos para $PROJECT_DIR..."
+    cp -r . $PROJECT_DIR/
+    cd $PROJECT_DIR
 else
-    echo "Já estamos em $PROJECT_DIR — pulando cópia."
-    # Evita que o 'cp -r . $PROJECT_DIR/' subsequente copie o diretório em si.
-    # Redireciona outras chamadas de cp para o binário original.
-    cp() {
-        if [ "$#" -ge 2 ] && [ "$1" = "-r" ] && [ "$2" = "." ]; then
-            return 0
-        fi
-        /bin/cp "$@"
-    }
+    echo "Já estamos em $PROJECT_DIR"
 fi
-cp -r . $PROJECT_DIR/
-cd $PROJECT_DIR
 
 echo ""
 echo "3. Configurando variáveis de ambiente..."
@@ -68,6 +60,17 @@ if [ ! -f /etc/nginx/sites-enabled/$DOMAIN ]; then
 fi
 
 if [ -f /etc/nginx/sites-enabled/default ]; then
+    rm /etc/nginx/sites-enabled/default
+fi
+
+echo ""
+echo "5. Testando configuração do Nginx..."
+nginx -t
+
+echo ""
+echo "6. Recarregando Nginx..."
+systemctl reload nginx
+
 echo ""
 echo "7. Iniciando containers Docker (porta 5006)..."
 docker-compose down 2>/dev/null || true
