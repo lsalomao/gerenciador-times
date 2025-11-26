@@ -51,8 +51,44 @@ else
 fi
 
 echo ""
-echo "4. Configurando Nginx..."
-cp sites-available/volei.ledtech.app /etc/nginx/sites-available/$DOMAIN
+echo "4. Configurando Nginx (temporariamente sem SSL)..."
+cat > /etc/nginx/sites-available/$DOMAIN << 'EOF'
+server {
+    listen 80;
+    server_name volei.ledtech.app www.volei.ledtech.app;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    client_max_body_size 20M;
+
+    location /static/ {
+        alias /opt/gerenciador-times/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /media/ {
+        alias /opt/gerenciador-times/media/;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:5006;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+EOF
 
 if [ ! -f /etc/nginx/sites-enabled/$DOMAIN ]; then
     ln -s /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
@@ -91,6 +127,7 @@ echo ""
 echo "11. Copiando arquivos estáticos para Nginx..."
 mkdir -p $PROJECT_DIR/staticfiles
 mkdir -p $PROJECT_DIR/media
+mkdir -p /var/www/certbot
 docker cp volei_web:/app/staticfiles/. $PROJECT_DIR/staticfiles/ 2>/dev/null || true
 docker cp volei_web:/app/media/. $PROJECT_DIR/media/ 2>/dev/null || true
 chown -R www-data:www-data $PROJECT_DIR/staticfiles
