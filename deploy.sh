@@ -5,7 +5,6 @@ set -e
 echo "==================================="
 echo "Deploy - Gerenciador de Times"
 echo "Porta: 5006 | HTTPS: Sim"
-echo "==================================="
 echo ""
 
 DOMAIN="volei.ledtech.app"
