@@ -40,10 +40,10 @@ if [ ! -f .env ]; then
 
     sed -i "s|DEBUG=.*|DEBUG=False|g" .env
     sed -i "s|SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|g" .env
-    sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,www.$DOMAIN,localhost,127.0.0.1|g" .env
+    sed -i "s|ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$DOMAIN,localhost,127.0.0.1|g" .env
     sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|g" .env
     sed -i "s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$DB_PASSWORD|g" .env
-    sed -i "s|CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=https://$DOMAIN,https://www.$DOMAIN|g" .env
+    sed -i "s|CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=https://$DOMAIN|g" .env
 
     echo "Arquivo .env configurado!"
 else
@@ -55,7 +55,7 @@ echo "4. Configurando Nginx (temporariamente sem SSL)..."
 cat > /etc/nginx/sites-available/$DOMAIN << 'EOF'
 server {
     listen 80;
-    server_name volei.ledtech.app www.volei.ledtech.app;
+    server_name volei.ledtech.app;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -144,11 +144,11 @@ if [ "$SETUP_SSL" = "s" ] || [ "$SETUP_SSL" = "S" ]; then
         apt install certbot python3-certbot-nginx -y
     fi
 
-    certbot --nginx -d $DOMAIN -d www.$DOMAIN --email $EMAIL --agree-tos --non-interactive
+    certbot --nginx -d $DOMAIN --email $EMAIL --agree-tos --non-interactive
     echo "SSL configurado com sucesso!"
 else
     echo "Pulando configuração SSL. Você pode configurar depois com:"
-    echo "certbot --nginx -d $DOMAIN -d www.$DOMAIN"
+    echo "certbot --nginx -d $DOMAIN"
 fi
 
 echo ""
