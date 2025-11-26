@@ -36,7 +36,7 @@ echo "3. Configurando variáveis de ambiente..."
 if [ ! -f .env ]; then
     cp .env.example .env
 
-    SECRET_KEY=$(python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+    SECRET_KEY=$(openssl rand -base64 50 | tr -d '\n')
 
     sed -i "s|DEBUG=.*|DEBUG=False|g" .env
     sed -i "s|SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|g" .env
