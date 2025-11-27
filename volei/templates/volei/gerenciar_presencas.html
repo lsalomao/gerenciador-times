@@ -18,8 +18,13 @@
                         <input type="date" class="form-control" id="data" name="data" value="{{ data_selecionada|date:'Y-m-d' }}" required>
                     </div>
 
-                    <h5 class="mb-3">Marque os jogadores presentes:</h5>
-                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Marque os jogadores presentes:</h5>
+                        <button type="button" class="btn btn-sm btn-primary" id="marcarTodos">
+                            <i class="bi bi-check-all"></i> Marcar Todos
+                        </button>
+                    </div>
+
                     <div class="row">
                         {% for jogador in jogadores %}
                             <div class="col-md-4 col-sm-6 mb-3">
@@ -58,4 +63,21 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('marcarTodos').addEventListener('click', function() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name^="jogador_"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = !allChecked;
+    });
+
+    this.innerHTML = allChecked
+        ? '<i class="bi bi-check-all"></i> Marcar Todos'
+        : '<i class="bi bi-x-circle"></i> Desmarcar Todos';
+});
+</script>
 {% endblock %}

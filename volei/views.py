@@ -7,6 +7,7 @@ from .forms import JogadorForm, PresencaFormSet
 from datetime import date, timedelta
 from collections import defaultdict
 import random
+import itertools
 
 class HomeView(TemplateView):
     template_name = 'volei/home.html'
@@ -139,15 +140,15 @@ def gerar_times(request):
             num_times = 4
         
         times_gerados = equilibrar_times(jogadores, num_times)
-        
-        for i, (titulares, reserva) in enumerate(times_gerados, 1):
+
+        for i, (titulares, reservas_time) in enumerate(times_gerados, 1):
             time = Time.objects.create(
                 data=data_jogo,
                 nome=f'Time {i}'
             )
             time.jogadores.set(titulares)
-            if reserva:
-                time.reservas.add(reserva)
+            if reservas_time:
+                time.reservas.set(reservas_time)
         
         messages.success(request, f'{num_times} times gerados com sucesso para {data_jogo.strftime("%d/%m/%Y")}!')
         return redirect('time_list')
@@ -160,34 +161,145 @@ def gerar_times(request):
     })
 
 def equilibrar_times(jogadores, num_times):
+    """
+    Algoritmo melhorado para equilibrar times de vôlei.
+
+    Regras:
+    - Cada time tem 4 titulares fixos
+    - Jogadores restantes são distribuídos como reservas
+
+    Exemplos:
+    - 20 jogadores → 4 times (4 titulares + 1 reserva cada)
+    - 19 jogadores → 4 times (4 titulares cada + 3 reservas distribuídos)
+    - 18 jogadores → 4 times (4 titulares cada + 2 reservas distribuídos)
+    - 16 jogadores → 4 times (4 titulares cada, sem reservas)
+    - 10 jogadores → 2 times (4 titulares + 1 reserva cada)
+
+    Melhorias implementadas:
+    1. Snake Draft: Distribui jogadores em padrão serpente (1→2→3→3→2→1)
+    2. Balanceamento por nível: Agrupa jogadores por nível antes de distribuir
+    3. Otimização por swaps: Após distribuição inicial, tenta trocar jogadores para melhorar equilíbrio
+    4. Múltiplas métricas: Considera soma total e desvio padrão entre times
+    """
+
+    # Agrupa jogadores por nível
     jogadores_por_nivel = defaultdict(list)
     for jogador in jogadores:
         jogadores_por_nivel[jogador.nivel].append(jogador)
-    
+
+    # Embaralha cada grupo para aleatoriedade
     for nivel in jogadores_por_nivel:
         random.shuffle(jogadores_por_nivel[nivel])
-    
+
+    # Inicializa times e reservas
     times = [[] for _ in range(num_times)]
-    reservas = [None for _ in range(num_times)]
-    
+    reservas = [[] for _ in range(num_times)]
+    jogadores_por_time = 4  # 4 titulares por time (fixo)
+
+    # Lista ordenada de jogadores (do maior para o menor nível)
+    jogadores_ordenados = []
     for nivel in sorted(jogadores_por_nivel.keys(), reverse=True):
-        jogadores_nivel = jogadores_por_nivel[nivel]
-        
-        for jogador in jogadores_nivel:
-            somas = [sum(j.nivel for j in time) for time in times]
-            
-            times_disponiveis = [(i, soma) for i, (time, soma) in enumerate(zip(times, somas)) if len(time) < 4]
-            
-            if times_disponiveis:
-                idx_time = min(times_disponiveis, key=lambda x: x[1])[0]
-                times[idx_time].append(jogador)
-            else:
-                for i, reserva in enumerate(reservas):
-                    if reserva is None:
-                        reservas[i] = jogador
-                        break
-    
+        jogadores_ordenados.extend(jogadores_por_nivel[nivel])
+
+    # Snake Draft: distribui TITULARES em padrão serpente
+    idx_jogador = 0
+    rodada = 0
+
+    while idx_jogador < len(jogadores_ordenados) and any(len(time) < jogadores_por_time for time in times):
+        if rodada % 2 == 0:
+            # Ida: 0 → 1 → 2 → 3
+            for idx_time in range(num_times):
+                if idx_jogador >= len(jogadores_ordenados):
+                    break
+                if len(times[idx_time]) < jogadores_por_time:
+                    times[idx_time].append(jogadores_ordenados[idx_jogador])
+                    idx_jogador += 1
+        else:
+            # Volta: 3 → 2 → 1 → 0
+            for idx_time in range(num_times - 1, -1, -1):
+                if idx_jogador >= len(jogadores_ordenados):
+                    break
+                if len(times[idx_time]) < jogadores_por_time:
+                    times[idx_time].append(jogadores_ordenados[idx_jogador])
+                    idx_jogador += 1
+        rodada += 1
+
+    # Distribui RESERVAS (jogadores que sobraram após preencher os titulares)
+    idx_time_reserva = 0
+    while idx_jogador < len(jogadores_ordenados):
+        reservas[idx_time_reserva].append(jogadores_ordenados[idx_jogador])
+        idx_time_reserva = (idx_time_reserva + 1) % num_times
+        idx_jogador += 1
+
+    # Otimização por swaps: tenta melhorar o equilíbrio trocando jogadores entre times
+    times = otimizar_times_com_swaps(times, max_iteracoes=100)
+
+    # Retorna times com suas respectivas reservas
     return list(zip(times, reservas))
+
+
+def calcular_metricas_times(times):
+    """Calcula métricas de equilíbrio dos times."""
+    somas = [sum(j.nivel for j in time) for time in times]
+
+    if not somas:
+        return 0, 0
+
+    # Diferença entre o time mais forte e o mais fraco
+    diferenca_max = max(somas) - min(somas)
+
+    # Desvio padrão das somas
+    media = sum(somas) / len(somas)
+    variancia = sum((s - media) ** 2 for s in somas) / len(somas)
+    desvio_padrao = variancia ** 0.5
+
+    return diferenca_max, desvio_padrao
+
+
+def otimizar_times_com_swaps(times, max_iteracoes=100):
+    """
+    Tenta melhorar o equilíbrio dos times trocando jogadores entre eles.
+
+    Estratégia:
+    - Tenta trocar 1 jogador entre 2 times
+    - Aceita a troca se melhorar as métricas de equilíbrio
+    - Repete até não encontrar melhorias ou atingir max_iteracoes
+    """
+    melhor_times = [time[:] for time in times]  # Cópia profunda
+    melhor_diferenca, melhor_desvio = calcular_metricas_times(melhor_times)
+
+    melhorou = True
+    iteracoes = 0
+
+    while melhorou and iteracoes < max_iteracoes:
+        melhorou = False
+        iteracoes += 1
+
+        # Tenta trocar jogadores entre cada par de times
+        for i, j in itertools.combinations(range(len(times)), 2):
+            # Tenta trocar cada jogador do time i com cada jogador do time j
+            for idx_i, jogador_i in enumerate(times[i]):
+                for idx_j, jogador_j in enumerate(times[j]):
+                    # Faz a troca temporária
+                    times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+                    # Calcula novas métricas
+                    nova_diferenca, novo_desvio = calcular_metricas_times(times)
+
+                    # Se melhorou, mantém a troca
+                    if nova_diferenca < melhor_diferenca or (nova_diferenca == melhor_diferenca and novo_desvio < melhor_desvio):
+                        melhor_diferenca = nova_diferenca
+                        melhor_desvio = novo_desvio
+                        melhorou = True
+                        melhor_times = [time[:] for time in times]
+                    else:
+                        # Desfaz a troca
+                        times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+        if melhorou:
+            times = [time[:] for time in melhor_times]
+
+    return melhor_times
 
 def editar_time(request, pk):
     time = get_object_or_404(Time, pk=pk)
