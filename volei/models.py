@@ -1,8 +1,17 @@
 from django.db import models
 
 class Jogador(models.Model):
+    POSICOES = [
+        ('ponta', 'Ponta'),
+        ('oposto', 'Oposto'),        
+        ('levantador', 'Levantador'),
+        ('libero', 'Líbero'),
+        ('tantofaz', 'Tanto Faz'),
+    ]
+
     nome = models.CharField(max_length=100)
     nivel = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    posicao_preferida = models.CharField(max_length=20, choices=POSICOES, blank=True, null=True)
     ativo = models.BooleanField(default=True)
 
     def __str__(self):

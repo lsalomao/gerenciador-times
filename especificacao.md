@@ -18,6 +18,7 @@ Desenvolver um sistema web responsivo (compatível com celulares) para organizar
 
 1. **Cadastro de Jogadores**
    - Cadastro de nome e nível (1 a 5, avaliado por um organizador).
+   - No cadastro ter a opção do jogador definir sua posição preferida (ex.: ponta, defensor, levantador.)
    - Lista de jogadores ativos e reservas.
 
 2. **Confirmação de Presença**
