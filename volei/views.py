@@ -162,7 +162,7 @@ def gerar_times(request):
 
 def equilibrar_times(jogadores, num_times):
     """
-    Algoritmo melhorado para equilibrar times de vôlei.
+    Algoritmo para equilibrar times de vôlei.
 
     Regras:
     - Cada time tem 4 titulares fixos
