@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <!-- Gradientes para dar volume -->
+    <radialGradient id="whitePanel" cx="30%" cy="30%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#f5f5f5"/>
+      <stop offset="100%" stop-color="#d0d0d0"/>
+    </radialGradient>
+    <radialGradient id="bluePanel" cx="30%" cy="30%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="70%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e40af"/>
+    </radialGradient>
+    <radialGradient id="yellowPanel" cx="30%" cy="30%">
+      <stop offset="0%" stop-color="#ffd700"/>
+      <stop offset="70%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </radialGradient>
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="3" dy="3"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Sombra da bola -->
+  <ellipse cx="105" cy="185" rx="70" ry="12" fill="#000000" opacity="0.2"/>
+  
+  <!-- Círculo base -->
+  <circle cx="100" cy="100" r="85" fill="#f0f0f0" filter="url(#shadow)"/>
+  
+  <!-- Painel branco superior esquerdo -->
+  <path d="M 100,15 Q 70,20 50,35 Q 40,50 38,70 Q 45,80 60,85 Q 80,88 95,85 Q 100,75 100,60 Z" 
+        fill="url(#whitePanel)" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Painel azul superior direito -->
+  <path d="M 100,15 Q 130,20 150,35 Q 160,50 162,70 Q 155,80 140,85 Q 120,88 105,85 Q 100,75 100,60 Z" 
+        fill="url(#bluePanel)" stroke="#1e40af" stroke-width="1.5"/>
+  
+  <!-- Painel azul esquerdo -->
+  <path d="M 38,70 Q 20,90 15,110 Q 18,130 30,145 Q 45,140 55,130 Q 60,115 60,100 Q 55,85 60,85 Q 45,80 38,70 Z" 
+        fill="url(#bluePanel)" stroke="#1e40af" stroke-width="1.5"/>
+  
+  <!-- Painel amarelo direito -->
+  <path d="M 162,70 Q 180,90 185,110 Q 182,130 170,145 Q 155,140 145,130 Q 140,115 140,100 Q 145,85 140,85 Q 155,80 162,70 Z" 
+        fill="url(#yellowPanel)" stroke="#d97706" stroke-width="1.5"/>
+  
+  <!-- Painel branco central -->
+  <path d="M 60,85 Q 80,88 100,88 Q 120,88 140,85 Q 145,100 140,115 Q 120,120 100,120 Q 80,120 60,115 Q 55,100 60,85 Z" 
+        fill="url(#whitePanel)" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Painel amarelo inferior esquerdo -->
+  <path d="M 30,145 Q 40,160 55,170 Q 70,178 85,182 Q 90,165 88,150 Q 80,135 70,128 Q 55,130 30,145 Z" 
+        fill="url(#yellowPanel)" stroke="#d97706" stroke-width="1.5"/>
+  
+  <!-- Painel azul inferior direito -->
+  <path d="M 170,145 Q 160,160 145,170 Q 130,178 115,182 Q 110,165 112,150 Q 120,135 130,128 Q 145,130 170,145 Z" 
+        fill="url(#bluePanel)" stroke="#1e40af" stroke-width="1.5"/>
+  
+  <!-- Painel branco inferior central -->
+  <path d="M 70,128 Q 80,135 88,150 Q 90,165 85,182 Q 95,184 100,185 Q 105,184 115,182 Q 110,165 112,150 Q 120,135 130,128 Q 115,125 100,125 Q 85,125 70,128 Z" 
+        fill="url(#whitePanel)" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Linhas de costura -->
+  <g fill="none" stroke="#2c2c2c" stroke-width="2" stroke-linecap="round" opacity="0.6">
+    <path d="M 100,15 Q 70,20 50,35"/>
+    <path d="M 100,15 Q 130,20 150,35"/>
+    <path d="M 50,35 Q 40,50 38,70"/>
+    <path d="M 150,35 Q 160,50 162,70"/>
+    <path d="M 38,70 Q 20,90 15,110"/>
+    <path d="M 162,70 Q 180,90 185,110"/>
+    <path d="M 60,85 Q 55,100 60,115"/>
+    <path d="M 140,85 Q 145,100 140,115"/>
+    <path d="M 30,145 Q 40,160 55,170"/>
+    <path d="M 170,145 Q 160,160 145,170"/>
+    <path d="M 70,128 Q 75,140 85,150"/>
+    <path d="M 130,128 Q 125,140 115,150"/>
+  </g>
+  
+  <!-- Brilho realista -->
+  <ellipse cx="75" cy="55" rx="25" ry="18" fill="#ffffff" opacity="0.5"/>
+  <ellipse cx="70" cy="50" rx="15" ry="10" fill="#ffffff" opacity="0.7"/>
+  
+  <!-- Contorno final -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+</svg>
