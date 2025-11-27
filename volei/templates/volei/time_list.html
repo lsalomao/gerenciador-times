@@ -33,18 +33,28 @@
                                                 <ul class="list-group mb-3">
                                                     {% for jogador in time.jogadores.all %}
                                                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                            {{ jogador.nome }}
+                                                            <div>
+                                                                {{ jogador.nome }}
+                                                                {% if jogador.posicao_preferida %}
+                                                                    <small class="text-muted">({{ jogador.get_posicao_preferida_display }})</small>
+                                                                {% endif %}
+                                                            </div>
                                                             <span class="badge bg-info">Nível {{ jogador.nivel }}</span>
                                                         </li>
                                                     {% endfor %}
                                                 </ul>
-                                                
+
                                                 {% if time.reservas.all %}
                                                     <h6 class="text-secondary"><i class="bi bi-person-plus-fill"></i> Reserva:</h6>
                                                     <ul class="list-group mb-3">
                                                         {% for reserva in time.reservas.all %}
                                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                                {{ reserva.nome }}
+                                                                <div>
+                                                                    {{ reserva.nome }}
+                                                                    {% if reserva.posicao_preferida %}
+                                                                        <small class="text-muted">({{ reserva.get_posicao_preferida_display }})</small>
+                                                                    {% endif %}
+                                                                </div>
                                                                 <span class="badge bg-secondary">Nível {{ reserva.nivel }}</span>
                                                             </li>
                                                         {% endfor %}

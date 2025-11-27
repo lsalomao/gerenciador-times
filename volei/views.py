@@ -167,6 +167,8 @@ def equilibrar_times(jogadores, num_times):
     Regras:
     - Cada time tem 4 titulares fixos
     - Jogadores restantes são distribuídos como reservas
+    - Evita repetir posições preferidas no mesmo time
+    - Jogadores "tantofaz" são distribuídos por último
 
     Exemplos:
     - 20 jogadores → 4 times (4 titulares + 1 reserva cada)
@@ -178,13 +180,19 @@ def equilibrar_times(jogadores, num_times):
     Melhorias implementadas:
     1. Snake Draft: Distribui jogadores em padrão serpente (1→2→3→3→2→1)
     2. Balanceamento por nível: Agrupa jogadores por nível antes de distribuir
-    3. Otimização por swaps: Após distribuição inicial, tenta trocar jogadores para melhorar equilíbrio
-    4. Múltiplas métricas: Considera soma total e desvio padrão entre times
+    3. Balanceamento por posição: Evita repetir posições no mesmo time
+    4. Priorização: Jogadores com posição definida antes de "tantofaz"
+    5. Otimização por swaps: Após distribuição inicial, tenta trocar jogadores para melhorar equilíbrio
+    6. Múltiplas métricas: Considera soma total e desvio padrão entre times
     """
 
-    # Agrupa jogadores por nível
+    # Separa jogadores por posição (tantofaz por último)
+    jogadores_com_posicao = [j for j in jogadores if j.posicao_preferida and j.posicao_preferida != 'tantofaz']
+    jogadores_tantofaz = [j for j in jogadores if not j.posicao_preferida or j.posicao_preferida == 'tantofaz']
+
+    # Agrupa jogadores com posição por nível
     jogadores_por_nivel = defaultdict(list)
-    for jogador in jogadores:
+    for jogador in jogadores_com_posicao:
         jogadores_por_nivel[jogador.nivel].append(jogador)
 
     # Embaralha cada grupo para aleatoriedade
@@ -194,14 +202,15 @@ def equilibrar_times(jogadores, num_times):
     # Inicializa times e reservas
     times = [[] for _ in range(num_times)]
     reservas = [[] for _ in range(num_times)]
+    posicoes_por_time = [set() for _ in range(num_times)]  # Rastreia posições já usadas
     jogadores_por_time = 4  # 4 titulares por time (fixo)
 
-    # Lista ordenada de jogadores (do maior para o menor nível)
+    # Lista ordenada de jogadores com posição (do maior para o menor nível)
     jogadores_ordenados = []
     for nivel in sorted(jogadores_por_nivel.keys(), reverse=True):
         jogadores_ordenados.extend(jogadores_por_nivel[nivel])
 
-    # Snake Draft: distribui TITULARES em padrão serpente
+    # Snake Draft: distribui TITULARES com posição definida em padrão serpente
     idx_jogador = 0
     rodada = 0
 
@@ -212,16 +221,82 @@ def equilibrar_times(jogadores, num_times):
                 if idx_jogador >= len(jogadores_ordenados):
                     break
                 if len(times[idx_time]) < jogadores_por_time:
-                    times[idx_time].append(jogadores_ordenados[idx_jogador])
-                    idx_jogador += 1
+                    jogador = jogadores_ordenados[idx_jogador]
+                    # Verifica se a posição já existe no time
+                    if jogador.posicao_preferida not in posicoes_por_time[idx_time]:
+                        times[idx_time].append(jogador)
+                        posicoes_por_time[idx_time].add(jogador.posicao_preferida)
+                        idx_jogador += 1
+                    else:
+                        # Tenta encontrar próximo jogador com posição diferente
+                        encontrou = False
+                        for i in range(idx_jogador + 1, len(jogadores_ordenados)):
+                            candidato = jogadores_ordenados[i]
+                            if candidato.posicao_preferida not in posicoes_por_time[idx_time]:
+                                times[idx_time].append(candidato)
+                                posicoes_por_time[idx_time].add(candidato.posicao_preferida)
+                                # Remove candidato e reinsere o jogador atual
+                                jogadores_ordenados.pop(i)
+                                encontrou = True
+                                break
+                        if not encontrou:
+                            # Se não encontrou, adiciona mesmo com posição repetida
+                            times[idx_time].append(jogador)
+                            posicoes_por_time[idx_time].add(jogador.posicao_preferida)
+                            idx_jogador += 1
         else:
             # Volta: 3 → 2 → 1 → 0
             for idx_time in range(num_times - 1, -1, -1):
                 if idx_jogador >= len(jogadores_ordenados):
                     break
                 if len(times[idx_time]) < jogadores_por_time:
-                    times[idx_time].append(jogadores_ordenados[idx_jogador])
-                    idx_jogador += 1
+                    jogador = jogadores_ordenados[idx_jogador]
+                    # Verifica se a posição já existe no time
+                    if jogador.posicao_preferida not in posicoes_por_time[idx_time]:
+                        times[idx_time].append(jogador)
+                        posicoes_por_time[idx_time].add(jogador.posicao_preferida)
+                        idx_jogador += 1
+                    else:
+                        # Tenta encontrar próximo jogador com posição diferente
+                        encontrou = False
+                        for i in range(idx_jogador + 1, len(jogadores_ordenados)):
+                            candidato = jogadores_ordenados[i]
+                            if candidato.posicao_preferida not in posicoes_por_time[idx_time]:
+                                times[idx_time].append(candidato)
+                                posicoes_por_time[idx_time].add(candidato.posicao_preferida)
+                                # Remove candidato e reinsere o jogador atual
+                                jogadores_ordenados.pop(i)
+                                encontrou = True
+                                break
+                        if not encontrou:
+                            # Se não encontrou, adiciona mesmo com posição repetida
+                            times[idx_time].append(jogador)
+                            posicoes_por_time[idx_time].add(jogador.posicao_preferida)
+                            idx_jogador += 1
+        rodada += 1
+
+    # Agora distribui jogadores "tantofaz" para completar os times
+    random.shuffle(jogadores_tantofaz)
+    jogadores_tantofaz_ordenados = sorted(jogadores_tantofaz, key=lambda j: j.nivel, reverse=True)
+
+    idx_tantofaz = 0
+    rodada = 0
+
+    while idx_tantofaz < len(jogadores_tantofaz_ordenados) and any(len(time) < jogadores_por_time for time in times):
+        if rodada % 2 == 0:
+            for idx_time in range(num_times):
+                if idx_tantofaz >= len(jogadores_tantofaz_ordenados):
+                    break
+                if len(times[idx_time]) < jogadores_por_time:
+                    times[idx_time].append(jogadores_tantofaz_ordenados[idx_tantofaz])
+                    idx_tantofaz += 1
+        else:
+            for idx_time in range(num_times - 1, -1, -1):
+                if idx_tantofaz >= len(jogadores_tantofaz_ordenados):
+                    break
+                if len(times[idx_time]) < jogadores_por_time:
+                    times[idx_time].append(jogadores_tantofaz_ordenados[idx_tantofaz])
+                    idx_tantofaz += 1
         rodada += 1
 
     # Distribui RESERVAS (jogadores que sobraram após preencher os titulares)
@@ -230,6 +305,12 @@ def equilibrar_times(jogadores, num_times):
         reservas[idx_time_reserva].append(jogadores_ordenados[idx_jogador])
         idx_time_reserva = (idx_time_reserva + 1) % num_times
         idx_jogador += 1
+
+    # Adiciona jogadores tantofaz restantes às reservas
+    while idx_tantofaz < len(jogadores_tantofaz_ordenados):
+        reservas[idx_time_reserva].append(jogadores_tantofaz_ordenados[idx_tantofaz])
+        idx_time_reserva = (idx_time_reserva + 1) % num_times
+        idx_tantofaz += 1
 
     # Otimização por swaps: tenta melhorar o equilíbrio trocando jogadores entre times
     times = otimizar_times_com_swaps(times, max_iteracoes=100)
