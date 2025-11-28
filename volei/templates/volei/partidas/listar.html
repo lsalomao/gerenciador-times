@@ -1,0 +1,91 @@
+{% extends 'volei/base.html' %}
+
+{% block title %}Partidas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-trophy"></i> Partidas</h1>
+        <a href="{% url 'criar_partida' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nova Partida
+        </a>
+    </div>
+    
+    <div class="mb-4">
+        <div class="btn-group" role="group">
+            <a href="{% url 'listar_partidas' %}"
+               class="btn btn-outline-secondary {% if not status_atual %}active{% endif %}">
+                Todas
+            </a>
+            <a href="{% url 'listar_partidas' %}?status=em_andamento"
+               class="btn btn-outline-secondary {% if status_atual == 'em_andamento' %}active{% endif %}">
+                Em Andamento
+            </a>
+            <a href="{% url 'listar_partidas' %}?status=finalizada"
+               class="btn btn-outline-secondary {% if status_atual == 'finalizada' %}active{% endif %}">
+                Finalizadas
+            </a>
+        </div>
+    </div>
+    
+    {% if partidas %}
+        <div class="row">
+            {% for partida in partidas %}
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">
+                                {{ partida.time_a.nome }} vs {{ partida.time_b.nome }}
+                            </h5>
+                            <span class="badge 
+                                {% if partida.status == 'agendada' %}bg-secondary
+                                {% elif partida.status == 'em_andamento' %}bg-success
+                                {% else %}bg-primary{% endif %}">
+                                {{ partida.get_status_display }}
+                            </span>
+                        </div>
+                        
+                        <div class="text-center my-3">
+                            <h2>
+                                {{ partida.pontos_time_a }} x {{ partida.pontos_time_b }}
+                            </h2>
+                        </div>
+                        
+                        {% if partida.status == 'finalizada' %}
+                            <p class="text-center text-success mb-2">
+                                <strong><i class="bi bi-trophy-fill"></i> Vencedor: {{ partida.vencedor.nome }}</strong>
+                            </p>
+                        {% endif %}
+                        
+                        {% if partida.start_time %}
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-clock"></i> Início: {{ partida.start_time|date:"d/m/Y H:i" }}
+                            </p>
+                        {% endif %}
+                        
+                        {% if partida.end_time %}
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-clock-fill"></i> Término: {{ partida.end_time|date:"d/m/Y H:i" }}
+                            </p>
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-hourglass"></i> Duração: {{ partida.duracao }}
+                            </p>
+                        {% endif %}
+                        
+                        <a href="{% url 'detalhe_partida' partida.pk %}" 
+                           class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="bi bi-eye"></i> Ver Detalhes
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Nenhuma partida encontrada.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

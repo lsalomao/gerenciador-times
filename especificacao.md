@@ -84,3 +84,34 @@ class Time(models.Model):
 
     def __str__(self):
         return f"Time {self.nome} - {self.data}"
+
+class Partida(models.Model):
+    STATUS_CHOICES = [
+        ('agendada', 'Agendada'),
+        ('em_andamento', 'Em Andamento'),
+        ('finalizada', 'Finalizada'),
+    ]
+
+    time_a = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='partidas_como_time_a')
+    time_b = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='partidas_como_time_b')
+    pontos_time_a = models.IntegerField(default=0)
+    pontos_time_b = models.IntegerField(default=0)
+    vencedor = models.ForeignKey(Time, on_delete=models.SET_NULL, null=True, blank=True, related_name='vitorias')
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='agendada')
+
+    def __str__(self):
+        return f"{self.time_a.nome} vs {self.time_b.nome} - {self.status}"
+
+class EventoPonto(models.Model):
+    partida = models.ForeignKey(Partida, on_delete=models.CASCADE, related_name='eventos')
+    time = models.ForeignKey(Time, on_delete=models.CASCADE)
+    sequencia = models.IntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sequencia']
+
+    def __str__(self):
+        return f"Ponto #{self.sequencia} - {self.time.nome} - {self.partida}"

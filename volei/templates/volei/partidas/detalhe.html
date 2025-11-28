@@ -1,0 +1,229 @@
+{% extends 'volei/base.html' %}
+
+{% block title %}{{ partida.time_a.nome }} vs {{ partida.time_b.nome }}{% endblock %}
+
+{% block content %}
+<style>
+    .placar-container {
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .placar-times {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        margin: 2rem 0;
+    }
+    
+    .placar-time {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .placar-time h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .placar-pontos {
+        font-size: 4rem;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .placar-vencedor {
+        color: #28a745;
+    }
+    
+    .placar-vs {
+        font-size: 2rem;
+        color: #666;
+        padding: 0 2rem;
+    }
+    
+    .botoes-acao {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+    
+    .btn-ponto {
+        font-size: 1.5rem;
+        padding: 1rem 2rem;
+        min-width: 200px;
+    }
+    
+    .btn-desfazer {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
+    }
+    
+    .btn-desfazer:hover {
+        background-color: #e0a800;
+        border-color: #d39e00;
+        color: #000;
+    }
+    
+    .info-partida {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-top: 2rem;
+    }
+    
+    .historico-pontos {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 2rem;
+    }
+    
+    .badge-status {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .placar-times {
+            flex-direction: column;
+        }
+        
+        .placar-vs {
+            padding: 1rem 0;
+        }
+        
+        .placar-pontos {
+            font-size: 3rem;
+        }
+        
+        .btn-ponto {
+            min-width: 100%;
+        }
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="placar-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="{% url 'listar_partidas' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+            <span class="badge badge-status
+                {% if partida.status == 'agendada' %}bg-secondary
+                {% elif partida.status == 'em_andamento' %}bg-success
+                {% else %}bg-primary{% endif %}">
+                {{ partida.get_status_display }}
+            </span>
+        </div>
+        
+        <div class="placar-times">
+            <div class="placar-time">
+                <h2>{{ partida.time_a.nome }}</h2>
+                <div class="placar-pontos {% if partida.vencedor == partida.time_a %}placar-vencedor{% endif %}">
+                    {{ partida.pontos_time_a }}
+                </div>
+            </div>
+            
+            <div class="placar-vs">vs</div>
+            
+            <div class="placar-time">
+                <h2>{{ partida.time_b.nome }}</h2>
+                <div class="placar-pontos {% if partida.vencedor == partida.time_b %}placar-vencedor{% endif %}">
+                    {{ partida.pontos_time_b }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="botoes-acao">
+            {% if partida.status == 'agendada' %}
+                <form method="post" action="{% url 'iniciar_partida' partida.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-play-circle"></i> Iniciar Partida
+                    </button>
+                </form>
+            {% elif partida.status == 'em_andamento' %}
+                <form method="post" action="{% url 'adicionar_ponto' partida.pk partida.time_a.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary btn-ponto">
+                        <i class="bi bi-plus-circle"></i> +1 {{ partida.time_a.nome }}
+                    </button>
+                </form>
+
+                <form method="post" action="{% url 'adicionar_ponto' partida.pk partida.time_b.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary btn-ponto">
+                        <i class="bi bi-plus-circle"></i> +1 {{ partida.time_b.nome }}
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        {% if partida.status == 'em_andamento' and partida.pode_desfazer %}
+            <div class="botoes-acao">
+                <form method="post" action="{% url 'desfazer_ponto' partida.pk %}"
+                      onsubmit="return confirm('Deseja realmente desfazer o último ponto?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-desfazer btn-lg">
+                        <i class="bi bi-arrow-counterclockwise"></i> Desfazer Último Ponto
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+        
+        <div class="info-partida">
+            <div class="row">
+                {% if partida.start_time %}
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-clock"></i> Início:</strong><br>
+                        {{ partida.start_time|date:"d/m/Y H:i:s" }}
+                    </div>
+                {% endif %}
+                
+                {% if partida.end_time %}
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-clock-fill"></i> Término:</strong><br>
+                        {{ partida.end_time|date:"d/m/Y H:i:s" }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-hourglass"></i> Duração:</strong><br>
+                        {{ partida.duracao }}
+                    </div>
+                {% endif %}
+                
+                {% if partida.vencedor %}
+                    <div class="col-12 mt-3">
+                        <h4 class="text-success">
+                            <i class="bi bi-trophy-fill"></i> Vencedor: {{ partida.vencedor.nome }}
+                        </h4>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if eventos %}
+            <div class="historico-pontos">
+                <h5 class="mt-4 mb-3"><i class="bi bi-list-ol"></i> Histórico de Pontos</h5>
+                <div class="list-group">
+                    {% for evento in eventos %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    <strong>Ponto #{{ evento.sequencia }}</strong> - 
+                                    {{ evento.time.nome }}
+                                </span>
+                                <small class="text-muted">
+                                    {{ evento.timestamp|date:"H:i:s" }}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

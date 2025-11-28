@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib import messages
-from .models import Jogador, Presenca, Time
-from .forms import JogadorForm, PresencaFormSet
+from .models import Jogador, Presenca, Time, Partida
+from .forms import JogadorForm, PresencaFormSet, PartidaForm
 from datetime import date, timedelta
 from collections import defaultdict
 import random
@@ -414,3 +414,109 @@ def excluir_time(request, pk):
         return redirect('time_list')
     
     return render(request, 'volei/time_confirm_delete.html', {'time': time})
+
+
+def listar_partidas(request):
+    """Lista todas as partidas com filtros opcionais"""
+    hoje = date.today()
+
+    partidas = Partida.objects.filter(
+        start_time__date=hoje
+    ).select_related(
+        'time_a', 'time_b', 'vencedor'
+    )
+
+    status = request.GET.get('status')
+    if status:
+        partidas = partidas.filter(status=status)
+
+    context = {
+        'partidas': partidas,
+        'status_atual': status,
+    }
+    return render(request, 'volei/partidas/listar.html', context)
+
+
+def criar_partida(request):
+    """Cria uma nova partida"""
+    if request.method == 'POST':
+        form = PartidaForm(request.POST)
+        if form.is_valid():
+            partida = form.save()
+            messages.success(request, 'Partida criada com sucesso!')
+            return redirect('detalhe_partida', pk=partida.pk)
+    else:
+        form = PartidaForm()
+
+    context = {
+        'form': form,
+    }
+    return render(request, 'volei/partidas/criar.html', context)
+
+
+def detalhe_partida(request, pk):
+    """Exibe o placar e controles da partida"""
+    partida = get_object_or_404(
+        Partida.objects.select_related('time_a', 'time_b', 'vencedor'),
+        pk=pk
+    )
+
+    eventos = partida.eventos.all().select_related('time')
+
+    context = {
+        'partida': partida,
+        'eventos': eventos,
+    }
+    return render(request, 'volei/partidas/detalhe.html', context)
+
+
+def iniciar_partida(request, pk):
+    """Inicia uma partida agendada"""
+    if request.method != 'POST':
+        return redirect('detalhe_partida', pk=pk)
+
+    partida = get_object_or_404(Partida, pk=pk)
+
+    if partida.iniciar():
+        messages.success(request, 'Partida iniciada!')
+    else:
+        messages.error(request, 'Não foi possível iniciar a partida.')
+
+    return redirect('detalhe_partida', pk=pk)
+
+
+def adicionar_ponto(request, pk, time_id):
+    """Adiciona um ponto ao time especificado"""
+    if request.method != 'POST':
+        return redirect('detalhe_partida', pk=pk)
+
+    partida = get_object_or_404(Partida, pk=pk)
+    time = get_object_or_404(Time, pk=time_id)
+
+    if partida.adicionar_ponto(time):
+        if partida.status == 'finalizada':
+            messages.success(
+                request,
+                f'Partida finalizada! Vencedor: {partida.vencedor.nome}'
+            )
+        else:
+            messages.success(request, f'Ponto para {time.nome}!')
+    else:
+        messages.error(request, 'Não foi possível adicionar o ponto.')
+
+    return redirect('detalhe_partida', pk=pk)
+
+
+def desfazer_ponto(request, pk):
+    """Desfaz o último ponto registrado"""
+    if request.method != 'POST':
+        return redirect('detalhe_partida', pk=pk)
+
+    partida = get_object_or_404(Partida, pk=pk)
+
+    if partida.desfazer_ultimo_ponto():
+        messages.success(request, 'Último ponto desfeito!')
+    else:
+        messages.error(request, 'Não há pontos para desfazer.')
+
+    return redirect('detalhe_partida', pk=pk)

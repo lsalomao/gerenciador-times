@@ -1,5 +1,5 @@
 from django import forms
-from .models import Jogador, Presenca, Time
+from .models import Jogador, Presenca, Time, Partida
 
 class JogadorForm(forms.ModelForm):
     class Meta:
@@ -27,3 +27,41 @@ PresencaFormSet = forms.modelformset_factory(
     form=PresencaForm,
     extra=0
 )
+
+
+class PartidaForm(forms.ModelForm):
+    class Meta:
+        model = Partida
+        fields = ['time_a', 'time_b']
+        widgets = {
+            'time_a': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'time_b': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+        }
+        labels = {
+            'time_a': 'Time A',
+            'time_b': 'Time B',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from datetime import date
+        hoje = date.today()
+        times_hoje = Time.objects.filter(data=hoje)
+        self.fields['time_a'].queryset = times_hoje
+        self.fields['time_b'].queryset = times_hoje
+
+    def clean(self):
+        cleaned_data = super().clean()
+        time_a = cleaned_data.get('time_a')
+        time_b = cleaned_data.get('time_b')
+
+        if time_a and time_b and time_a == time_b:
+            raise forms.ValidationError(
+                'Os times devem ser diferentes!'
+            )
+
+        return cleaned_data
