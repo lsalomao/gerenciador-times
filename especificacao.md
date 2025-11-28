@@ -20,6 +20,8 @@ Desenvolver um sistema web responsivo (compatível com celulares) para organizar
    - Cadastro de nome e nível (1 a 5, avaliado por um organizador).
    - No cadastro ter a opção do jogador definir sua posição preferida (ex.: ponta, defensor, levantador.)
    - Lista de jogadores ativos e reservas.
+   - Ter um controle de jogadores fixos (que são do grupo principal) / e tem os convidados pode ser um dropdown com fixo e convidados.
+
 
 2. **Confirmação de Presença**
    - Interface para o organizador marcar quem confirmou presença para o jogo da semana.
@@ -27,7 +29,7 @@ Desenvolver um sistema web responsivo (compatível com celulares) para organizar
 3. **Formação Automática de Times**
    - Gerar automaticamente times de 4 titulares e 1 reserva, equilibrando os níveis dos jogadores.
    - O número de times depende do total de confirmados (até 20 pessoas).
-   - Algoritmo deve buscar o maior equilíbrio possível entre os times, somando os níveis dos jogadores.
+   - Algoritmo deve buscar o maior equilíbrio possível entre os times, somando os níveis dos jogadores e verificando para não repedir as posições preferidas.
 
 4. **Ajustes Manuais**
    - Permitir ao organizador fazer alterações manuais nos times antes de finalizar.

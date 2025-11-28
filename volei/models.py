@@ -3,15 +3,21 @@ from django.db import models
 class Jogador(models.Model):
     POSICOES = [
         ('ponta', 'Ponta'),
-        ('oposto', 'Oposto'),        
+        ('oposto', 'Oposto'),
         ('levantador', 'Levantador'),
         ('libero', 'Líbero'),
         ('tantofaz', 'Tanto Faz'),
     ]
 
+    TIPO_JOGADOR = [
+        ('fixo', 'Fixo'),
+        ('convidado', 'Convidado'),
+    ]
+
     nome = models.CharField(max_length=100)
     nivel = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
     posicao_preferida = models.CharField(max_length=20, choices=POSICOES, blank=True, null=True)
+    tipo_jogador = models.CharField(max_length=20, choices=TIPO_JOGADOR, default='fixo')
     ativo = models.BooleanField(default=True)
 
     def __str__(self):
