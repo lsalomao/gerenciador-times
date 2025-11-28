@@ -131,13 +131,11 @@ def gerar_times(request):
         
         jogadores = list(Jogador.objects.filter(id__in=jogadores_confirmados))
         
-        if len(jogadores) < 10:
-            messages.error(request, f'Necessário pelo menos 10 jogadores confirmados. Apenas {len(jogadores)} confirmados.')
+        if len(jogadores) < 8:
+            messages.error(request, f'Necessário pelo menos 8 jogadores confirmados. Apenas {len(jogadores)} confirmados.')
             return redirect('time_list')
-        
-        num_times = len(jogadores) // 5
-        if num_times > 4:
-            num_times = 4
+
+        num_times = min(len(jogadores) // 4, 4)
         
         times_gerados = equilibrar_times(jogadores, num_times)
 
