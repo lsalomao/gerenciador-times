@@ -628,11 +628,20 @@ def listar_partidas(request):
         start_time__date=hoje
     ).select_related(
         'time_a', 'time_b', 'vencedor'
+    ).prefetch_related(
+        'time_a__jogadores', 'time_b__jogadores'
     )
 
     status = request.GET.get('status')
     if status:
         partidas = partidas.filter(status=status)
+
+    for partida in partidas:
+        primeiro_jogador_a = partida.time_a.jogadores.first()
+        partida.time_a_display = f"{partida.time_a.nome} - {primeiro_jogador_a.nome}" if primeiro_jogador_a else partida.time_a.nome
+
+        primeiro_jogador_b = partida.time_b.jogadores.first()
+        partida.time_b_display = f"{partida.time_b.nome} - {primeiro_jogador_b.nome}" if primeiro_jogador_b else partida.time_b.nome
 
     context = {
         'partidas': partidas,
