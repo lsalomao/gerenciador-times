@@ -9,7 +9,7 @@
         margin: 0 auto;
         padding: 1rem;
     }
-    
+
     .header-partida {
         background: white;
         border-radius: 20px;
@@ -17,10 +17,25 @@
         margin-bottom: 1.5rem;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .header-top {
+        display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
-    
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
     .btn-voltar {
         background: #6c757d;
         color: white;
@@ -34,78 +49,78 @@
         gap: 0.5rem;
         transition: all 0.3s;
     }
-    
+
     .btn-voltar:hover {
         background: #5a6268;
         transform: translateY(-2px);
         color: white;
     }
-    
+
     .badge-status {
         padding: 0.6rem 1.2rem;
         border-radius: 20px;
         font-size: 0.9rem;
         font-weight: 600;
     }
-    
+
     .placar-card {
         background: white;
         border-radius: 25px;
-        padding: 3rem 2rem;
+        padding: 2rem 1.5rem;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         margin-bottom: 1.5rem;
     }
-    
+
     .placar-header {
         display: grid;
         grid-template-columns: 1fr auto 1fr;
-        gap: 2rem;
+        gap: 1.5rem;
         align-items: center;
     }
-    
+
     .time-section {
         text-align: center;
         cursor: pointer;
-        padding: 2rem;
+        padding: 1.5rem;
         border-radius: 20px;
         transition: all 0.3s;
     }
-    
+
     .time-section:hover {
         background: #f8f9fa;
         transform: scale(1.02);
     }
-    
+
     .time-section:active {
         transform: scale(0.98);
     }
-    
+
     .time-nome {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: #2c3e50;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
-    
+
     .time-pontos {
-        font-size: 18rem;
+        font-size: 4rem;
         font-weight: 900;
         color: #0d6efd;
         line-height: 1;
     }
-    
+
     .time-vencedor .time-pontos {
         color: #198754;
     }
-    
+
     .vs-divider {
-        font-size: 2.5rem;
+        font-size: 2rem;
         font-weight: 700;
         color: #adb5bd;
     }
-    
+
     .btn-iniciar {
         background: #198754;
         border: none;
@@ -123,13 +138,13 @@
         width: 100%;
         margin-top: 2rem;
     }
-    
+
     .btn-iniciar:hover {
         background: #146c43;
         transform: translateY(-2px);
         box-shadow: 0 6px 16px rgba(25, 135, 84, 0.3);
     }
-    
+
     .btn-desfazer {
         background: #ffc107;
         color: #000;
@@ -152,7 +167,7 @@
         box-shadow: 0 6px 16px rgba(255, 193, 7, 0.3);
         color: #000;
     }
-    
+
     .info-card {
         background: white;
         border-radius: 20px;
@@ -160,7 +175,7 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         margin-bottom: 1.5rem;
     }
-    
+
     .info-item {
         display: flex;
         align-items: center;
@@ -168,16 +183,16 @@
         margin-bottom: 0.8rem;
         font-size: 0.95rem;
     }
-    
+
     .info-item i {
         color: #0d6efd;
         font-size: 1.2rem;
     }
-    
+
     .info-item strong {
         color: #2c3e50;
     }
-    
+
     .vencedor-badge {
         background: #198754;
         color: white;
@@ -189,12 +204,12 @@
         margin-top: 1rem;
         box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25);
     }
-    
+
     .vencedor-badge i {
         font-size: 1.5rem;
         margin-right: 0.5rem;
     }
-    
+
     .historico-card {
         background: white;
         border-radius: 20px;
@@ -203,7 +218,7 @@
         max-height: 400px;
         overflow-y: auto;
     }
-    
+
     .historico-titulo {
         font-size: 1.1rem;
         font-weight: 700;
@@ -213,7 +228,7 @@
         align-items: center;
         gap: 0.5rem;
     }
-    
+
     .historico-item {
         background: #f8f9fa;
         border-left: 4px solid #0d6efd;
@@ -224,88 +239,96 @@
         justify-content: space-between;
         align-items: center;
     }
-    
+
     .historico-item:last-child {
         border-left-color: #198754;
         background: #d1e7dd;
     }
-    
+
     @media (max-width: 768px) and (orientation: landscape) {
         .placar-wrapper {
             padding: 0.5rem;
         }
-        
+
         .header-partida {
             padding: 0.8rem;
             margin-bottom: 1rem;
         }
-        
+
         .placar-card {
-            padding: 2rem 1.5rem;
+            padding: 1.5rem 1rem;
         }
-        
+
         .time-pontos {
-            font-size: 6rem;
+            font-size: 3rem;
         }
-        
+
         .time-nome {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
         }
-        
+
         .vs-divider {
-            font-size: 2rem;
+            font-size: 1.5rem;
         }
-        
+
         .info-card,
         .historico-card {
             display: none;
         }
     }
-    
+
     @media (max-width: 576px) and (orientation: portrait) {
         .placar-wrapper {
             padding: 0.5rem;
         }
-        
+
         .placar-card {
             padding: 1.5rem 1rem;
         }
-        
+
         .time-pontos {
-            font-size: 5rem;
+            font-size: 3.5rem;
         }
-        
+
         .time-nome {
             font-size: 1.2rem;
+            margin-bottom: 0.5rem;
         }
-        
+
         .vs-divider {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+            justify-content: space-between;
         }
     }
 </style>
 
 <div class="placar-wrapper">
     <div class="header-partida">
-        <a href="{% url 'listar_partidas' %}" class="btn-voltar">
-            <i class="bi bi-arrow-left"></i> Voltar
-        </a>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <span class="badge badge-status
-                {% if partida.status == 'agendada' %}bg-secondary
-                {% elif partida.status == 'em_andamento' %}bg-success
-                {% else %}bg-primary{% endif %}">
-                {{ partida.get_status_display }}
-            </span>
-            {% if partida.status == 'em_andamento' and partida.pode_desfazer %}
-                <form method="post" action="{% url 'desfazer_ponto' partida.pk %}" style="margin: 0;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn-desfazer">
-                        <i class="bi bi-arrow-counterclockwise"></i> Desfazer
-                    </button>
-                </form>
-            {% endif %}
+        <div class="header-top">
+            <a href="{% url 'listar_partidas' %}" class="btn-voltar">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+            <div class="header-actions">
+                <span class="badge badge-status
+                    {% if partida.status == 'agendada' %}bg-secondary
+                    {% elif partida.status == 'em_andamento' %}bg-success
+                    {% else %}bg-primary{% endif %}">
+                    {{ partida.get_status_display }}
+                </span>
+                {% if partida.status == 'em_andamento' and partida.pode_desfazer %}
+                    <form method="post" action="{% url 'desfazer_ponto' partida.pk %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-desfazer">
+                            <i class="bi bi-arrow-counterclockwise"></i> Desfazer
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
         </div>
     </div>
     
