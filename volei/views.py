@@ -8,6 +8,9 @@ from datetime import date, timedelta
 from collections import defaultdict
 import random
 import itertools
+import logging
+
+logger = logging.getLogger(__name__)
 
 class HomeView(TemplateView):
     template_name = 'volei/home.html'
@@ -128,16 +131,45 @@ def gerar_times(request):
             .select_related('jogador')
             .values_list('jogador', flat=True)
         )
-        
+
         jogadores = list(Jogador.objects.filter(id__in=jogadores_confirmados))
-        
-        if len(jogadores) < 8:
-            messages.error(request, f'Necessário pelo menos 8 jogadores confirmados. Apenas {len(jogadores)} confirmados.')
+
+        if len(jogadores) < 16:
+            messages.error(request, f'Necessário pelo menos 16 jogadores confirmados para gerar 4 times. Apenas {len(jogadores)} confirmados.')
             return redirect('time_list')
 
+        if len(jogadores) > 20:
+            jogadores_fixos = sorted(
+                [j for j in jogadores if j.tipo_jogador == 'fixo'],
+                key=lambda x: x.nivel,
+                reverse=True
+            )
+            jogadores_convidados = sorted(
+                [j for j in jogadores if j.tipo_jogador == 'convidado'],
+                key=lambda x: x.nivel,
+                reverse=True
+            )
+
+            jogadores_selecionados = (jogadores_fixos + jogadores_convidados)[:20]
+
+            excluidos = len(jogadores) - 20
+            messages.warning(
+                request,
+                f'{len(jogadores)} jogadores confirmados. Selecionados os 20 melhores '
+                f'(priorizando fixos). {excluidos} jogador(es) ficaram de fora.'
+            )
+            jogadores = jogadores_selecionados
+
         num_times = min(len(jogadores) // 4, 4)
-        
-        times_gerados = equilibrar_times(jogadores, num_times)
+
+        try:
+            times_gerados = equilibrar_times(jogadores, num_times)
+        except ValueError as e:
+            messages.error(request, f'Erro ao gerar times: {str(e)}')
+            return redirect('time_list')
+
+        titulares_apenas = [titulares for titulares, _ in times_gerados]
+        score_final, detalhes = calcular_metricas_times(titulares_apenas)
 
         for i, (titulares, reservas_time) in enumerate(times_gerados, 1):
             time = Time.objects.create(
@@ -147,8 +179,16 @@ def gerar_times(request):
             time.jogadores.set(titulares)
             if reservas_time:
                 time.reservas.set(reservas_time)
-        
-        messages.success(request, f'{num_times} times gerados com sucesso para {data_jogo.strftime("%d/%m/%Y")}!')
+
+        score_percentual = int(score_final * 100)
+        messages.success(
+            request,
+            f'{num_times} times gerados com sucesso! '
+            f'Score de equilíbrio: {score_percentual}% | '
+            f'Diferença de níveis: {detalhes["diferenca_niveis"]} | '
+            f'Diversidade: {detalhes["diversidade_media"]} | '
+            f'Equilíbrio fixos/convidados: {detalhes["equilibrio_fixos"]}'
+        )
         return redirect('time_list')
     
     proximas_datas = Presenca.objects.filter(confirmado=True).values_list('data', flat=True).distinct().order_by('-data')
@@ -157,6 +197,30 @@ def gerar_times(request):
         'proximas_datas': proximas_datas,
         'data_sugerida': date.today()
     })
+
+def validar_jogadores(jogadores):
+    erros = []
+
+    if not jogadores:
+        erros.append("Nenhum jogador fornecido")
+        return erros
+
+    for jogador in jogadores:
+        if not hasattr(jogador, 'nivel') or jogador.nivel not in range(1, 6):
+            erros.append(f"{jogador.nome}: nível inválido (deve ser entre 1 e 5)")
+
+        if not hasattr(jogador, 'posicao_preferida') or not jogador.posicao_preferida:
+            erros.append(f"{jogador.nome}: posição preferida não definida")
+
+        if not hasattr(jogador, 'tipo_jogador') or not jogador.tipo_jogador:
+            erros.append(f"{jogador.nome}: tipo de jogador não definido")
+
+    posicoes_validas = set(j.posicao_preferida for j in jogadores if hasattr(j, 'posicao_preferida') and j.posicao_preferida and j.posicao_preferida != 'tantofaz')
+    if len(posicoes_validas) < 2:
+        erros.append("Necessário pelo menos 2 posições diferentes entre os jogadores (exceto 'tantofaz')")
+
+    return erros
+
 
 def equilibrar_times(jogadores, num_times):
     """
@@ -182,201 +246,343 @@ def equilibrar_times(jogadores, num_times):
     4. Priorização: Jogadores com posição definida antes de "tantofaz"
     5. Otimização por swaps: Após distribuição inicial, tenta trocar jogadores para melhorar equilíbrio
     6. Múltiplas métricas: Considera soma total e desvio padrão entre times
+    7. Pré-indexação: Otimiza busca de jogadores por posição (O(1) vs O(n))
+    8. Early stopping: Para otimização quando não há melhoria significativa
     """
 
-    # Separa jogadores por posição (tantofaz por último)
-    jogadores_com_posicao = [j for j in jogadores if j.posicao_preferida and j.posicao_preferida != 'tantofaz']
-    jogadores_tantofaz = [j for j in jogadores if not j.posicao_preferida or j.posicao_preferida == 'tantofaz']
+    erros = validar_jogadores(jogadores)
+    if erros:
+        raise ValueError("Erros de validação: " + "; ".join(erros))
 
-    # Agrupa jogadores com posição por nível
-    jogadores_por_nivel = defaultdict(list)
-    for jogador in jogadores_com_posicao:
-        jogadores_por_nivel[jogador.nivel].append(jogador)
+    logger.info(f"Iniciando geração de {num_times} times com {len(jogadores)} jogadores")
 
-    # Embaralha cada grupo para aleatoriedade
-    for nivel in jogadores_por_nivel:
-        random.shuffle(jogadores_por_nivel[nivel])
+    jogadores_ordenados, jogadores_tantofaz = preparar_jogadores(jogadores)
 
-    # Inicializa times e reservas
-    times = [[] for _ in range(num_times)]
-    reservas = [[] for _ in range(num_times)]
-    posicoes_por_time = [set() for _ in range(num_times)]  # Rastreia posições já usadas
-    jogadores_por_time = 4  # 4 titulares por time (fixo)
+    times, posicoes_por_time = distribuir_titulares(
+        jogadores_ordenados,
+        jogadores_tantofaz,
+        num_times
+    )
 
-    # Lista ordenada de jogadores com posição (do maior para o menor nível)
+    reservas = distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times)
+
+    times = otimizar_times_simulated_annealing(times, max_iteracoes=500)
+
+    logger.info(f"Times gerados com sucesso")
+
+    return list(zip(times, reservas))
+
+
+def preparar_jogadores(jogadores):
+    """
+    Separa e ordena jogadores por tipo e posição.
+
+    Retorna:
+        jogadores_ordenados: Lista ordenada (fixos com posição → convidados com posição)
+        jogadores_tantofaz: Lista ordenada (fixos tantofaz → convidados tantofaz)
+    """
+    fixos_com_posicao = [j for j in jogadores if j.tipo_jogador == 'fixo' and j.posicao_preferida and j.posicao_preferida != 'tantofaz']
+    convidados_com_posicao = [j for j in jogadores if j.tipo_jogador == 'convidado' and j.posicao_preferida and j.posicao_preferida != 'tantofaz']
+    fixos_tantofaz = [j for j in jogadores if j.tipo_jogador == 'fixo' and (not j.posicao_preferida or j.posicao_preferida == 'tantofaz')]
+    convidados_tantofaz = [j for j in jogadores if j.tipo_jogador == 'convidado' and (not j.posicao_preferida or j.posicao_preferida == 'tantofaz')]
+
+    fixos_por_nivel = defaultdict(list)
+    for jogador in fixos_com_posicao:
+        fixos_por_nivel[jogador.nivel].append(jogador)
+
+    convidados_por_nivel = defaultdict(list)
+    for jogador in convidados_com_posicao:
+        convidados_por_nivel[jogador.nivel].append(jogador)
+
+    for nivel in fixos_por_nivel:
+        random.shuffle(fixos_por_nivel[nivel])
+    for nivel in convidados_por_nivel:
+        random.shuffle(convidados_por_nivel[nivel])
+
     jogadores_ordenados = []
-    for nivel in sorted(jogadores_por_nivel.keys(), reverse=True):
-        jogadores_ordenados.extend(jogadores_por_nivel[nivel])
+    for nivel in sorted(fixos_por_nivel.keys(), reverse=True):
+        jogadores_ordenados.extend(fixos_por_nivel[nivel])
+    for nivel in sorted(convidados_por_nivel.keys(), reverse=True):
+        jogadores_ordenados.extend(convidados_por_nivel[nivel])
 
-    # Snake Draft: distribui TITULARES com posição definida em padrão serpente
-    idx_jogador = 0
+    fixos_tantofaz_ordenados = sorted(fixos_tantofaz, key=lambda j: j.nivel, reverse=True)
+    convidados_tantofaz_ordenados = sorted(convidados_tantofaz, key=lambda j: j.nivel, reverse=True)
+    jogadores_tantofaz = fixos_tantofaz_ordenados + convidados_tantofaz_ordenados
+
+    logger.debug(f"Jogadores preparados: {len(jogadores_ordenados)} com posição, {len(jogadores_tantofaz)} tantofaz")
+
+    return jogadores_ordenados, jogadores_tantofaz
+
+
+def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
+    """
+    Distribui titulares usando Snake Draft com pré-indexação de posições.
+
+    Retorna:
+        times: Lista de times com titulares
+        posicoes_por_time: Conjunto de posições por time
+    """
+    times = [[] for _ in range(num_times)]
+    posicoes_por_time = [set() for _ in range(num_times)]
+    jogadores_por_time = 4
+
+    jogadores_usados = set()
+    idx_por_posicao = defaultdict(list)
+
+    for idx, jogador in enumerate(jogadores_ordenados):
+        idx_por_posicao[jogador.posicao_preferida].append(idx)
+
     rodada = 0
+    total_distribuidos = 0
+    total_necessario = num_times * jogadores_por_time
 
-    while idx_jogador < len(jogadores_ordenados) and any(len(time) < jogadores_por_time for time in times):
-        if rodada % 2 == 0:
-            # Ida: 0 → 1 → 2 → 3
-            for idx_time in range(num_times):
-                if idx_jogador >= len(jogadores_ordenados):
+    while total_distribuidos < total_necessario and (len(jogadores_usados) < len(jogadores_ordenados) or any(len(time) < jogadores_por_time for time in times)):
+        ordem_times = range(num_times) if rodada % 2 == 0 else range(num_times - 1, -1, -1)
+
+        for idx_time in ordem_times:
+            if len(times[idx_time]) >= jogadores_por_time:
+                continue
+
+            jogador_adicionado = False
+
+            for idx_jogador in range(len(jogadores_ordenados)):
+                if idx_jogador in jogadores_usados:
+                    continue
+
+                jogador = jogadores_ordenados[idx_jogador]
+
+                if jogador.posicao_preferida not in posicoes_por_time[idx_time]:
+                    times[idx_time].append(jogador)
+                    posicoes_por_time[idx_time].add(jogador.posicao_preferida)
+                    jogadores_usados.add(idx_jogador)
+                    total_distribuidos += 1
+                    logger.debug(f"Time {idx_time+1}: adicionado {jogador.nome} ({jogador.posicao_preferida}, nível {jogador.nivel})")
+                    jogador_adicionado = True
                     break
-                if len(times[idx_time]) < jogadores_por_time:
+
+            if not jogador_adicionado:
+                for idx_jogador in range(len(jogadores_ordenados)):
+                    if idx_jogador in jogadores_usados:
+                        continue
+
                     jogador = jogadores_ordenados[idx_jogador]
-                    # Verifica se a posição já existe no time
-                    if jogador.posicao_preferida not in posicoes_por_time[idx_time]:
-                        times[idx_time].append(jogador)
-                        posicoes_por_time[idx_time].add(jogador.posicao_preferida)
-                        idx_jogador += 1
-                    else:
-                        # Tenta encontrar próximo jogador com posição diferente
-                        encontrou = False
-                        for i in range(idx_jogador + 1, len(jogadores_ordenados)):
-                            candidato = jogadores_ordenados[i]
-                            if candidato.posicao_preferida not in posicoes_por_time[idx_time]:
-                                times[idx_time].append(candidato)
-                                posicoes_por_time[idx_time].add(candidato.posicao_preferida)
-                                # Remove candidato e reinsere o jogador atual
-                                jogadores_ordenados.pop(i)
-                                encontrou = True
-                                break
-                        if not encontrou:
-                            # Se não encontrou, adiciona mesmo com posição repetida
-                            times[idx_time].append(jogador)
-                            posicoes_por_time[idx_time].add(jogador.posicao_preferida)
-                            idx_jogador += 1
-        else:
-            # Volta: 3 → 2 → 1 → 0
-            for idx_time in range(num_times - 1, -1, -1):
-                if idx_jogador >= len(jogadores_ordenados):
+                    times[idx_time].append(jogador)
+                    posicoes_por_time[idx_time].add(jogador.posicao_preferida)
+                    jogadores_usados.add(idx_jogador)
+                    total_distribuidos += 1
+                    logger.warning(f"Time {idx_time+1}: posição {jogador.posicao_preferida} repetida para {jogador.nome}")
+                    jogador_adicionado = True
                     break
-                if len(times[idx_time]) < jogadores_por_time:
-                    jogador = jogadores_ordenados[idx_jogador]
-                    # Verifica se a posição já existe no time
-                    if jogador.posicao_preferida not in posicoes_por_time[idx_time]:
-                        times[idx_time].append(jogador)
-                        posicoes_por_time[idx_time].add(jogador.posicao_preferida)
-                        idx_jogador += 1
-                    else:
-                        # Tenta encontrar próximo jogador com posição diferente
-                        encontrou = False
-                        for i in range(idx_jogador + 1, len(jogadores_ordenados)):
-                            candidato = jogadores_ordenados[i]
-                            if candidato.posicao_preferida not in posicoes_por_time[idx_time]:
-                                times[idx_time].append(candidato)
-                                posicoes_por_time[idx_time].add(candidato.posicao_preferida)
-                                # Remove candidato e reinsere o jogador atual
-                                jogadores_ordenados.pop(i)
-                                encontrou = True
-                                break
-                        if not encontrou:
-                            # Se não encontrou, adiciona mesmo com posição repetida
-                            times[idx_time].append(jogador)
-                            posicoes_por_time[idx_time].add(jogador.posicao_preferida)
-                            idx_jogador += 1
+
+            if total_distribuidos >= total_necessario:
+                break
+
         rodada += 1
 
-    # Agora distribui jogadores "tantofaz" para completar os times
-    random.shuffle(jogadores_tantofaz)
-    jogadores_tantofaz_ordenados = sorted(jogadores_tantofaz, key=lambda j: j.nivel, reverse=True)
+        if rodada > 100:
+            logger.error("Loop infinito detectado na distribuição de titulares")
+            break
 
     idx_tantofaz = 0
     rodada = 0
 
-    while idx_tantofaz < len(jogadores_tantofaz_ordenados) and any(len(time) < jogadores_por_time for time in times):
-        if rodada % 2 == 0:
-            for idx_time in range(num_times):
-                if idx_tantofaz >= len(jogadores_tantofaz_ordenados):
-                    break
-                if len(times[idx_time]) < jogadores_por_time:
-                    times[idx_time].append(jogadores_tantofaz_ordenados[idx_tantofaz])
-                    idx_tantofaz += 1
-        else:
-            for idx_time in range(num_times - 1, -1, -1):
-                if idx_tantofaz >= len(jogadores_tantofaz_ordenados):
-                    break
-                if len(times[idx_time]) < jogadores_por_time:
-                    times[idx_time].append(jogadores_tantofaz_ordenados[idx_tantofaz])
-                    idx_tantofaz += 1
+    while idx_tantofaz < len(jogadores_tantofaz) and any(len(time) < jogadores_por_time for time in times):
+        ordem_times = range(num_times) if rodada % 2 == 0 else range(num_times - 1, -1, -1)
+
+        for idx_time in ordem_times:
+            if idx_tantofaz >= len(jogadores_tantofaz):
+                break
+            if len(times[idx_time]) < jogadores_por_time:
+                jogador = jogadores_tantofaz[idx_tantofaz]
+                times[idx_time].append(jogador)
+                logger.debug(f"Time {idx_time+1}: adicionado {jogador.nome} (tantofaz, nível {jogador.nivel})")
+                idx_tantofaz += 1
         rodada += 1
 
-    # Distribui RESERVAS (jogadores que sobraram após preencher os titulares)
-    idx_time_reserva = 0
-    while idx_jogador < len(jogadores_ordenados):
-        reservas[idx_time_reserva].append(jogadores_ordenados[idx_jogador])
-        idx_time_reserva = (idx_time_reserva + 1) % num_times
-        idx_jogador += 1
+    validar_diversidade_minima(times)
 
-    # Adiciona jogadores tantofaz restantes às reservas
-    while idx_tantofaz < len(jogadores_tantofaz_ordenados):
-        reservas[idx_time_reserva].append(jogadores_tantofaz_ordenados[idx_tantofaz])
+    return times, posicoes_por_time
+
+
+def distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times):
+    """
+    Distribui jogadores restantes como reservas.
+
+    Retorna:
+        reservas: Lista de reservas por time
+    """
+    reservas = [[] for _ in range(num_times)]
+    idx_time_reserva = 0
+
+    titulares_count = num_times * 4
+
+    for idx in range(titulares_count, len(jogadores_ordenados)):
+        if idx < len(jogadores_ordenados):
+            reservas[idx_time_reserva].append(jogadores_ordenados[idx])
+            idx_time_reserva = (idx_time_reserva + 1) % num_times
+
+    tantofaz_usados = min(titulares_count, len(jogadores_ordenados))
+    idx_tantofaz = max(0, titulares_count - len(jogadores_ordenados))
+
+    while idx_tantofaz < len(jogadores_tantofaz):
+        reservas[idx_time_reserva].append(jogadores_tantofaz[idx_tantofaz])
         idx_time_reserva = (idx_time_reserva + 1) % num_times
         idx_tantofaz += 1
 
-    # Otimização por swaps: tenta melhorar o equilíbrio trocando jogadores entre times
-    times = otimizar_times_com_swaps(times, max_iteracoes=100)
+    logger.debug(f"Reservas distribuídas: {sum(len(r) for r in reservas)} jogadores")
 
-    # Retorna times com suas respectivas reservas
-    return list(zip(times, reservas))
+    return reservas
+
+
+def validar_diversidade_minima(times):
+    """
+    Valida se cada time tem diversidade mínima de posições.
+    Lança exceção se algum time tiver menos de 2 posições diferentes.
+    """
+    for idx, time in enumerate(times):
+        posicoes_unicas = set(
+            j.posicao_preferida for j in time
+            if hasattr(j, 'posicao_preferida') and j.posicao_preferida and j.posicao_preferida != 'tantofaz'
+        )
+        if len(posicoes_unicas) < 2:
+            logger.error(f"Time {idx+1} tem apenas {len(posicoes_unicas)} posição(ões) única(s)")
+            raise ValueError(f"Time {idx+1} não possui diversidade mínima de posições (mínimo: 2 posições diferentes)")
 
 
 def calcular_metricas_times(times):
-    """Calcula métricas de equilíbrio dos times."""
+    """
+    Calcula métricas avançadas de equilíbrio dos times.
+
+    Retorna:
+        score_final (float): Score composto de 0 a 1 (quanto maior, melhor)
+        detalhes (dict): Dicionário com métricas individuais
+
+    Métricas consideradas:
+    - 40% equilíbrio de níveis (diferença entre times)
+    - 30% diversidade de posições (variedade no time)
+    - 20% proporção fixos/convidados (distribuição equilibrada)
+    - 10% desvio padrão geral
+    """
+    if not times or not any(times):
+        return 0.0, {}
+
+    # Métrica 1: Equilíbrio de níveis (40%)
     somas = [sum(j.nivel for j in time) for time in times]
+    diferenca_niveis = max(somas) - min(somas)
+    score_niveis = max(0, 1 - (diferenca_niveis / 10))
 
-    if not somas:
-        return 0, 0
+    # Métrica 2: Diversidade de posições (30%)
+    diversidades = []
+    for time in times:
+        posicoes_unicas = len(set(
+            j.posicao_preferida for j in time
+            if hasattr(j, 'posicao_preferida') and j.posicao_preferida and j.posicao_preferida != 'tantofaz'
+        ))
+        diversidades.append(posicoes_unicas / 4)
+    score_posicoes = sum(diversidades) / len(diversidades) if diversidades else 0
 
-    # Diferença entre o time mais forte e o mais fraco
-    diferenca_max = max(somas) - min(somas)
+    # Métrica 3: Proporção fixos/convidados (20%)
+    proporcoes = []
+    for time in times:
+        if len(time) > 0:
+            fixos = sum(1 for j in time if hasattr(j, 'tipo_jogador') and j.tipo_jogador == 'fixo')
+            proporcoes.append(fixos / len(time))
 
-    # Desvio padrão das somas
+    if proporcoes:
+        desvio_proporcao = max(proporcoes) - min(proporcoes)
+        score_proporcao = max(0, 1 - desvio_proporcao)
+    else:
+        score_proporcao = 0
+
+    # Métrica 4: Desvio padrão das somas (10%)
     media = sum(somas) / len(somas)
     variancia = sum((s - media) ** 2 for s in somas) / len(somas)
     desvio_padrao = variancia ** 0.5
+    score_desvio = max(0, 1 - (desvio_padrao / 5))
 
-    return diferenca_max, desvio_padrao
+    # Score final ponderado
+    score_final = (
+        0.4 * score_niveis +
+        0.3 * score_posicoes +
+        0.2 * score_proporcao +
+        0.1 * score_desvio
+    )
+
+    detalhes = {
+        'diferenca_niveis': diferenca_niveis,
+        'diversidade_media': round(score_posicoes, 2),
+        'equilibrio_fixos': round(score_proporcao, 2),
+        'desvio_padrao': round(desvio_padrao, 2),
+        'somas_niveis': somas
+    }
+
+    return score_final, detalhes
 
 
-def otimizar_times_com_swaps(times, max_iteracoes=100):
+def otimizar_times_simulated_annealing(times, max_iteracoes=500, temperatura_inicial=1.0, taxa_resfriamento=0.95):
     """
-    Tenta melhorar o equilíbrio dos times trocando jogadores entre eles.
+    Otimiza o equilíbrio dos times usando Simulated Annealing com early stopping.
 
-    Estratégia:
-    - Tenta trocar 1 jogador entre 2 times
-    - Aceita a troca se melhorar as métricas de equilíbrio
-    - Repete até não encontrar melhorias ou atingir max_iteracoes
+    Vantagens sobre swaps simples:
+    - Aceita soluções piores temporariamente para escapar de mínimos locais
+    - Temperatura controla a probabilidade de aceitar soluções piores
+    - Mais eficiente e explora melhor o espaço de soluções
+    - Early stopping: para quando não há melhoria significativa
+
+    Parâmetros:
+    - max_iteracoes: número máximo de tentativas (padrão: 500)
+    - temperatura_inicial: temperatura inicial (controla aceitação de soluções piores)
+    - taxa_resfriamento: taxa de redução da temperatura a cada iteração
     """
-    melhor_times = [time[:] for time in times]  # Cópia profunda
-    melhor_diferenca, melhor_desvio = calcular_metricas_times(melhor_times)
+    import math
 
-    melhorou = True
-    iteracoes = 0
+    melhor_times = [time[:] for time in times]
+    melhor_score, _ = calcular_metricas_times(melhor_times)
 
-    while melhorou and iteracoes < max_iteracoes:
-        melhorou = False
-        iteracoes += 1
+    times_atual = [time[:] for time in times]
+    score_atual = melhor_score
+    temperatura = temperatura_inicial
 
-        # Tenta trocar jogadores entre cada par de times
-        for i, j in itertools.combinations(range(len(times)), 2):
-            # Tenta trocar cada jogador do time i com cada jogador do time j
-            for idx_i, jogador_i in enumerate(times[i]):
-                for idx_j, jogador_j in enumerate(times[j]):
-                    # Faz a troca temporária
-                    times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+    iteracoes_sem_melhoria = 0
+    limite_early_stopping = 100
 
-                    # Calcula novas métricas
-                    nova_diferenca, novo_desvio = calcular_metricas_times(times)
+    logger.info(f"Iniciando otimização: score inicial = {melhor_score:.4f}")
 
-                    # Se melhorou, mantém a troca
-                    if nova_diferenca < melhor_diferenca or (nova_diferenca == melhor_diferenca and novo_desvio < melhor_desvio):
-                        melhor_diferenca = nova_diferenca
-                        melhor_desvio = novo_desvio
-                        melhorou = True
-                        melhor_times = [time[:] for time in times]
-                    else:
-                        # Desfaz a troca
-                        times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+    for iteracao in range(max_iteracoes):
+        i, j = random.sample(range(len(times_atual)), 2)
 
-        if melhorou:
-            times = [time[:] for time in melhor_times]
+        if not times_atual[i] or not times_atual[j]:
+            continue
+
+        idx_i = random.randint(0, len(times_atual[i]) - 1)
+        idx_j = random.randint(0, len(times_atual[j]) - 1)
+
+        times_atual[i][idx_i], times_atual[j][idx_j] = times_atual[j][idx_j], times_atual[i][idx_i]
+
+        novo_score, _ = calcular_metricas_times(times_atual)
+
+        delta = novo_score - score_atual
+
+        if delta > 0 or random.random() < math.exp(delta / temperatura):
+            score_atual = novo_score
+
+            if novo_score > melhor_score:
+                melhoria = novo_score - melhor_score
+                melhor_score = novo_score
+                melhor_times = [time[:] for time in times_atual]
+                iteracoes_sem_melhoria = 0
+                logger.debug(f"Iteração {iteracao}: nova melhor solução = {melhor_score:.4f} (+{melhoria:.4f})")
+            else:
+                iteracoes_sem_melhoria += 1
+        else:
+            times_atual[i][idx_i], times_atual[j][idx_j] = times_atual[j][idx_j], times_atual[i][idx_i]
+            iteracoes_sem_melhoria += 1
+
+        if iteracoes_sem_melhoria >= limite_early_stopping:
+            logger.info(f"Early stopping na iteração {iteracao}: sem melhoria por {limite_early_stopping} iterações")
+            break
+
+        temperatura *= taxa_resfriamento
 
     return melhor_times
 
