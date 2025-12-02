@@ -106,13 +106,21 @@ def gerenciar_presencas(request):
     })
 
 def time_list(request):
-    times = Time.objects.all().prefetch_related('jogadores', 'reservas').order_by('-data', 'nome')
-    times_por_data = defaultdict(list)
-    for time in times:
-        times_por_data[time.data].append(time)
-    
+    data_selecionada = request.GET.get('data')
+
+    if data_selecionada:
+        try:
+            data_filtro = date.fromisoformat(data_selecionada)
+        except ValueError:
+            data_filtro = date.today()
+    else:
+        data_filtro = date.today()
+
+    times = Time.objects.filter(data=data_filtro).prefetch_related('jogadores', 'reservas').order_by('nome')
+
     return render(request, 'volei/time_list.html', {
-        'times_por_data': dict(times_por_data)
+        'times': times,
+        'data_selecionada': data_filtro
     })
 
 def gerar_times(request):
@@ -209,15 +217,8 @@ def validar_jogadores(jogadores):
         if not hasattr(jogador, 'nivel') or jogador.nivel not in range(1, 6):
             erros.append(f"{jogador.nome}: nível inválido (deve ser entre 1 e 5)")
 
-        if not hasattr(jogador, 'posicao_preferida') or not jogador.posicao_preferida:
-            erros.append(f"{jogador.nome}: posição preferida não definida")
-
         if not hasattr(jogador, 'tipo_jogador') or not jogador.tipo_jogador:
             erros.append(f"{jogador.nome}: tipo de jogador não definido")
-
-    posicoes_validas = set(j.posicao_preferida for j in jogadores if hasattr(j, 'posicao_preferida') and j.posicao_preferida and j.posicao_preferida != 'tantofaz')
-    if len(posicoes_validas) < 2:
-        erros.append("Necessário pelo menos 2 posições diferentes entre os jogadores (exceto 'tantofaz')")
 
     return erros
 
@@ -670,15 +671,23 @@ def criar_partida(request):
 def detalhe_partida(request, pk):
     """Exibe o placar e controles da partida"""
     partida = get_object_or_404(
-        Partida.objects.select_related('time_a', 'time_b', 'vencedor'),
+        Partida.objects.select_related('time_a', 'time_b', 'vencedor').prefetch_related('time_a__jogadores', 'time_b__jogadores'),
         pk=pk
     )
 
     eventos = partida.eventos.all().select_related('time')
 
+    primeiro_jogador_a = partida.time_a.jogadores.first()
+    time_a_display = f"{partida.time_a.nome} - {primeiro_jogador_a.nome}" if primeiro_jogador_a else partida.time_a.nome
+
+    primeiro_jogador_b = partida.time_b.jogadores.first()
+    time_b_display = f"{partida.time_b.nome} - {primeiro_jogador_b.nome}" if primeiro_jogador_b else partida.time_b.nome
+
     context = {
         'partida': partida,
         'eventos': eventos,
+        'time_a_display': time_a_display,
+        'time_b_display': time_b_display,
     }
     return render(request, 'volei/partidas/detalhe.html', context)
 
@@ -712,8 +721,6 @@ def adicionar_ponto(request, pk, time_id):
                 request,
                 f'Partida finalizada! Vencedor: {partida.vencedor.nome}'
             )
-        else:
-            messages.success(request, f'Ponto para {time.nome}!')
     else:
         messages.error(request, 'Não foi possível adicionar o ponto.')
 
@@ -733,3 +740,85 @@ def desfazer_ponto(request, pk):
         messages.error(request, 'Não há pontos para desfazer.')
 
     return redirect('detalhe_partida', pk=pk)
+
+
+def terminar_dia(request):
+    """Finaliza todas as partidas do dia e gera relatório de resultados"""
+    hoje = date.today()
+
+    partidas_abertas = Partida.objects.filter(
+        start_time__date=hoje,
+        status__in=['agendada', 'em_andamento']
+    )
+
+    for partida in partidas_abertas:
+        if partida.status == 'em_andamento':
+            if partida.pontos_time_a > partida.pontos_time_b:
+                partida.vencedor = partida.time_a
+            elif partida.pontos_time_b > partida.pontos_time_a:
+                partida.vencedor = partida.time_b
+
+        partida.status = 'finalizada'
+        if not partida.end_time:
+            from django.utils import timezone
+            partida.end_time = timezone.now()
+        partida.save()
+
+    partidas_finalizadas = Partida.objects.filter(
+        start_time__date=hoje,
+        status='finalizada'
+    ).select_related('time_a', 'time_b', 'vencedor')
+
+    times_stats = {}
+
+    for partida in partidas_finalizadas:
+        for time in [partida.time_a, partida.time_b]:
+            if time.id not in times_stats:
+                times_stats[time.id] = {
+                    'time': time,
+                    'jogos': 0,
+                    'vitorias': 0,
+                    'derrotas': 0,
+                    'pontos_feitos': 0,
+                    'pontos_sofridos': 0
+                }
+
+            times_stats[time.id]['jogos'] += 1
+
+            if time == partida.time_a:
+                times_stats[time.id]['pontos_feitos'] += partida.pontos_time_a
+                times_stats[time.id]['pontos_sofridos'] += partida.pontos_time_b
+                if partida.vencedor == time:
+                    times_stats[time.id]['vitorias'] += 1
+                else:
+                    times_stats[time.id]['derrotas'] += 1
+            else:
+                times_stats[time.id]['pontos_feitos'] += partida.pontos_time_b
+                times_stats[time.id]['pontos_sofridos'] += partida.pontos_time_a
+                if partida.vencedor == time:
+                    times_stats[time.id]['vitorias'] += 1
+                else:
+                    times_stats[time.id]['derrotas'] += 1
+
+    for stats in times_stats.values():
+        if stats['jogos'] > 0:
+            stats['percentual_vitorias'] = (stats['vitorias'] / stats['jogos']) * 100
+        else:
+            stats['percentual_vitorias'] = 0
+        stats['saldo'] = stats['pontos_feitos'] - stats['pontos_sofridos']
+
+    ranking = sorted(
+        times_stats.values(),
+        key=lambda x: (x['vitorias'], x['percentual_vitorias'], x['pontos_feitos']),
+        reverse=True
+    )
+
+    messages.success(request, f'{len(partidas_abertas)} partida(s) finalizada(s) com sucesso!')
+
+    context = {
+        'ranking': ranking,
+        'data': hoje,
+        'total_partidas': len(partidas_finalizadas)
+    }
+
+    return render(request, 'volei/partidas/relatorio_dia.html', context)

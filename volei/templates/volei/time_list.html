@@ -12,72 +12,84 @@
             </a>
         </div>
 
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="data" class="form-label"><i class="bi bi-calendar3"></i> Filtrar por Data:</label>
+                        <input type="date" class="form-control" id="data" name="data" value="{{ data_selecionada|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body">
-                {% if times_por_data %}
-                    {% for data, times in times_por_data.items %}
-                        <div class="mb-5">
-                            <h4 class="border-bottom pb-2 mb-4">
-                                <i class="bi bi-calendar3"></i> {{ data|date:"d/m/Y" }}
-                            </h4>
-                            <div class="row">
-                                {% for time in times %}
-                                    <div class="col-md-6 mb-4">
-                                        <div class="card border-primary">
-                                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                                                <h5 class="mb-0">{{ time.nome }}</h5>
-                                                <span class="badge bg-light text-dark">Soma: {{ time.soma_niveis }}</span>
-                                            </div>
-                                            <div class="card-body">
-                                                <h6 class="text-primary"><i class="bi bi-people-fill"></i> Titulares:</h6>
-                                                <ul class="list-group mb-3">
-                                                    {% for jogador in time.jogadores.all %}
-                                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                            <div>
-                                                                {{ jogador.nome }}
-                                                                {% if jogador.posicao_preferida %}
-                                                                    <small class="text-muted">({{ jogador.get_posicao_preferida_display }})</small>
-                                                                {% endif %}
-                                                            </div>
-                                                            <span class="badge bg-info">Nível {{ jogador.nivel }}</span>
-                                                        </li>
-                                                    {% endfor %}
-                                                </ul>
+                {% if times %}
+                    <h4 class="border-bottom pb-2 mb-4">
+                        <i class="bi bi-calendar3"></i> {{ data_selecionada|date:"d/m/Y" }}
+                    </h4>
+                    <div class="row">
+                        {% for time in times %}
+                            <div class="col-md-6 mb-4">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">{{ time.nome }}</h5>
+                                        <span class="badge bg-light text-dark">Soma: {{ time.soma_niveis }}</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="text-primary"><i class="bi bi-people-fill"></i> Titulares:</h6>
+                                        <ul class="list-group mb-3">
+                                            {% for jogador in time.jogadores.all %}
+                                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        {{ jogador.nome }}
+                                                        {% if jogador.posicao_preferida %}
+                                                            <small class="text-muted">({{ jogador.get_posicao_preferida_display }})</small>
+                                                        {% endif %}
+                                                    </div>
+                                                    <span class="badge bg-info">Nível {{ jogador.nivel }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
 
-                                                {% if time.reservas.all %}
-                                                    <h6 class="text-secondary"><i class="bi bi-person-plus-fill"></i> Reserva:</h6>
-                                                    <ul class="list-group mb-3">
-                                                        {% for reserva in time.reservas.all %}
-                                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                                <div>
-                                                                    {{ reserva.nome }}
-                                                                    {% if reserva.posicao_preferida %}
-                                                                        <small class="text-muted">({{ reserva.get_posicao_preferida_display }})</small>
-                                                                    {% endif %}
-                                                                </div>
-                                                                <span class="badge bg-secondary">Nível {{ reserva.nivel }}</span>
-                                                            </li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                {% endif %}
-                                                
-                                                <div class="d-flex justify-content-between">
-                                                    <a href="{% url 'editar_time' time.pk %}" class="btn btn-sm btn-warning">
-                                                        <i class="bi bi-pencil"></i> Editar
-                                                    </a>
-                                                    <a href="{% url 'excluir_time' time.pk %}" class="btn btn-sm btn-danger">
-                                                        <i class="bi bi-trash"></i> Excluir
-                                                    </a>
-                                                </div>
-                                            </div>
+                                        {% if time.reservas.all %}
+                                            <h6 class="text-secondary"><i class="bi bi-person-plus-fill"></i> Reserva:</h6>
+                                            <ul class="list-group mb-3">
+                                                {% for reserva in time.reservas.all %}
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            {{ reserva.nome }}
+                                                            {% if reserva.posicao_preferida %}
+                                                                <small class="text-muted">({{ reserva.get_posicao_preferida_display }})</small>
+                                                            {% endif %}
+                                                        </div>
+                                                        <span class="badge bg-secondary">Nível {{ reserva.nivel }}</span>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+
+                                        <div class="d-flex justify-content-between">
+                                            <a href="{% url 'editar_time' time.pk %}" class="btn btn-sm btn-warning">
+                                                <i class="bi bi-pencil"></i> Editar
+                                            </a>
+                                            <a href="{% url 'excluir_time' time.pk %}" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i> Excluir
+                                            </a>
                                         </div>
                                     </div>
-                                {% endfor %}
+                                </div>
                             </div>
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
                 {% else %}
-                    <p class="text-center text-muted">Nenhum time formado ainda. Clique em "Gerar Times" para começar.</p>
+                    <p class="text-center text-muted">Nenhum time encontrado para {{ data_selecionada|date:"d/m/Y" }}. Clique em "Gerar Times" para criar times para esta data.</p>
                 {% endif %}
             </div>
         </div>

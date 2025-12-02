@@ -4,226 +4,406 @@
 
 {% block content %}
 <style>
-    .placar-container {
-        text-align: center;
-        padding: 2rem;
+    .placar-wrapper {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 1rem;
     }
     
-    .placar-times {
+    .header-partida {
+        background: white;
+        border-radius: 20px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         display: flex;
-        justify-content: space-around;
+        justify-content: space-between;
         align-items: center;
-        margin: 2rem 0;
     }
     
-    .placar-time {
-        flex: 1;
-        text-align: center;
+    .btn-voltar {
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
     }
     
-    .placar-time h2 {
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    .placar-pontos {
-        font-size: 4rem;
-        font-weight: bold;
-        color: #333;
-    }
-    
-    .placar-vencedor {
-        color: #28a745;
-    }
-    
-    .placar-vs {
-        font-size: 2rem;
-        color: #666;
-        padding: 0 2rem;
-    }
-    
-    .botoes-acao {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin: 2rem 0;
-        flex-wrap: wrap;
-    }
-    
-    .btn-ponto {
-        font-size: 1.5rem;
-        padding: 1rem 2rem;
-        min-width: 200px;
-    }
-    
-    .btn-desfazer {
-        background-color: #ffc107;
-        border-color: #ffc107;
-        color: #000;
-    }
-    
-    .btn-desfazer:hover {
-        background-color: #e0a800;
-        border-color: #d39e00;
-        color: #000;
-    }
-    
-    .info-partida {
-        background-color: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-top: 2rem;
-    }
-    
-    .historico-pontos {
-        max-height: 300px;
-        overflow-y: auto;
-        margin-top: 2rem;
+    .btn-voltar:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+        color: white;
     }
     
     .badge-status {
-        font-size: 1rem;
-        padding: 0.5rem 1rem;
+        padding: 0.6rem 1.2rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
     }
     
-    @media (max-width: 768px) {
-        .placar-times {
-            flex-direction: column;
+    .placar-card {
+        background: white;
+        border-radius: 25px;
+        padding: 3rem 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+    }
+    
+    .placar-header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 2rem;
+        align-items: center;
+    }
+    
+    .time-section {
+        text-align: center;
+        cursor: pointer;
+        padding: 2rem;
+        border-radius: 20px;
+        transition: all 0.3s;
+    }
+    
+    .time-section:hover {
+        background: #f8f9fa;
+        transform: scale(1.02);
+    }
+    
+    .time-section:active {
+        transform: scale(0.98);
+    }
+    
+    .time-nome {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .time-pontos {
+        font-size: 18rem;
+        font-weight: 900;
+        color: #0d6efd;
+        line-height: 1;
+    }
+    
+    .time-vencedor .time-pontos {
+        color: #198754;
+    }
+    
+    .vs-divider {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #adb5bd;
+    }
+    
+    .btn-iniciar {
+        background: #198754;
+        border: none;
+        border-radius: 20px;
+        padding: 1.5rem;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: white;
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25);
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        margin-top: 2rem;
+    }
+    
+    .btn-iniciar:hover {
+        background: #146c43;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(25, 135, 84, 0.3);
+    }
+    
+    .btn-desfazer {
+        background: #ffc107;
+        color: #000;
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-desfazer:hover {
+        background: #ffb300;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(255, 193, 7, 0.3);
+        color: #000;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.8rem;
+        font-size: 0.95rem;
+    }
+    
+    .info-item i {
+        color: #0d6efd;
+        font-size: 1.2rem;
+    }
+    
+    .info-item strong {
+        color: #2c3e50;
+    }
+    
+    .vencedor-badge {
+        background: #198754;
+        color: white;
+        padding: 1rem;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-top: 1rem;
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25);
+    }
+    
+    .vencedor-badge i {
+        font-size: 1.5rem;
+        margin-right: 0.5rem;
+    }
+    
+    .historico-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .historico-titulo {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .historico-item {
+        background: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 0.8rem 1rem;
+        border-radius: 10px;
+        margin-bottom: 0.8rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .historico-item:last-child {
+        border-left-color: #198754;
+        background: #d1e7dd;
+    }
+    
+    @media (max-width: 768px) and (orientation: landscape) {
+        .placar-wrapper {
+            padding: 0.5rem;
         }
         
-        .placar-vs {
-            padding: 1rem 0;
+        .header-partida {
+            padding: 0.8rem;
+            margin-bottom: 1rem;
         }
         
-        .placar-pontos {
-            font-size: 3rem;
+        .placar-card {
+            padding: 2rem 1.5rem;
         }
         
-        .btn-ponto {
-            min-width: 100%;
+        .time-pontos {
+            font-size: 6rem;
+        }
+        
+        .time-nome {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .vs-divider {
+            font-size: 2rem;
+        }
+        
+        .info-card,
+        .historico-card {
+            display: none;
+        }
+    }
+    
+    @media (max-width: 576px) and (orientation: portrait) {
+        .placar-wrapper {
+            padding: 0.5rem;
+        }
+        
+        .placar-card {
+            padding: 1.5rem 1rem;
+        }
+        
+        .time-pontos {
+            font-size: 5rem;
+        }
+        
+        .time-nome {
+            font-size: 1.2rem;
+        }
+        
+        .vs-divider {
+            font-size: 1.8rem;
         }
     }
 </style>
 
-<div class="container mt-4">
-    <div class="placar-container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="{% url 'listar_partidas' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Voltar
-            </a>
+<div class="placar-wrapper">
+    <div class="header-partida">
+        <a href="{% url 'listar_partidas' %}" class="btn-voltar">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+        <div style="display: flex; align-items: center; gap: 1rem;">
             <span class="badge badge-status
                 {% if partida.status == 'agendada' %}bg-secondary
                 {% elif partida.status == 'em_andamento' %}bg-success
                 {% else %}bg-primary{% endif %}">
                 {{ partida.get_status_display }}
             </span>
-        </div>
-        
-        <div class="placar-times">
-            <div class="placar-time">
-                <h2>{{ partida.time_a.nome }}</h2>
-                <div class="placar-pontos {% if partida.vencedor == partida.time_a %}placar-vencedor{% endif %}">
-                    {{ partida.pontos_time_a }}
-                </div>
-            </div>
-            
-            <div class="placar-vs">vs</div>
-            
-            <div class="placar-time">
-                <h2>{{ partida.time_b.nome }}</h2>
-                <div class="placar-pontos {% if partida.vencedor == partida.time_b %}placar-vencedor{% endif %}">
-                    {{ partida.pontos_time_b }}
-                </div>
-            </div>
-        </div>
-        
-        <div class="botoes-acao">
-            {% if partida.status == 'agendada' %}
-                <form method="post" action="{% url 'iniciar_partida' partida.pk %}">
+            {% if partida.status == 'em_andamento' and partida.pode_desfazer %}
+                <form method="post" action="{% url 'desfazer_ponto' partida.pk %}" style="margin: 0;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-success btn-lg">
-                        <i class="bi bi-play-circle"></i> Iniciar Partida
-                    </button>
-                </form>
-            {% elif partida.status == 'em_andamento' %}
-                <form method="post" action="{% url 'adicionar_ponto' partida.pk partida.time_a.pk %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary btn-ponto">
-                        <i class="bi bi-plus-circle"></i> +1 {{ partida.time_a.nome }}
-                    </button>
-                </form>
-
-                <form method="post" action="{% url 'adicionar_ponto' partida.pk partida.time_b.pk %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary btn-ponto">
-                        <i class="bi bi-plus-circle"></i> +1 {{ partida.time_b.nome }}
+                    <button type="submit" class="btn-desfazer">
+                        <i class="bi bi-arrow-counterclockwise"></i> Desfazer
                     </button>
                 </form>
             {% endif %}
         </div>
-
-        {% if partida.status == 'em_andamento' and partida.pode_desfazer %}
-            <div class="botoes-acao">
-                <form method="post" action="{% url 'desfazer_ponto' partida.pk %}"
-                      onsubmit="return confirm('Deseja realmente desfazer o último ponto?');">
+    </div>
+    
+    <div class="placar-card">
+        <div class="placar-header">
+            {% if partida.status == 'em_andamento' %}
+                <form method="post" action="{% url 'adicionar_ponto' partida.pk partida.time_a.pk %}" style="margin: 0;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-desfazer btn-lg">
-                        <i class="bi bi-arrow-counterclockwise"></i> Desfazer Último Ponto
+                    <button type="submit" class="time-section {% if partida.vencedor == partida.time_a %}time-vencedor{% endif %}" style="border: none; background: none; width: 100%;">
+                        <div class="time-nome">{{ time_a_display }}</div>
+                        <div class="time-pontos">{{ partida.pontos_time_a }}</div>
                     </button>
                 </form>
-            </div>
-        {% endif %}
-        
-        <div class="info-partida">
-            <div class="row">
-                {% if partida.start_time %}
-                    <div class="col-md-4">
-                        <strong><i class="bi bi-clock"></i> Início:</strong><br>
-                        {{ partida.start_time|date:"d/m/Y H:i:s" }}
-                    </div>
-                {% endif %}
-                
-                {% if partida.end_time %}
-                    <div class="col-md-4">
-                        <strong><i class="bi bi-clock-fill"></i> Término:</strong><br>
-                        {{ partida.end_time|date:"d/m/Y H:i:s" }}
-                    </div>
-                    <div class="col-md-4">
-                        <strong><i class="bi bi-hourglass"></i> Duração:</strong><br>
-                        {{ partida.duracao }}
-                    </div>
-                {% endif %}
-                
-                {% if partida.vencedor %}
-                    <div class="col-12 mt-3">
-                        <h4 class="text-success">
-                            <i class="bi bi-trophy-fill"></i> Vencedor: {{ partida.vencedor.nome }}
-                        </h4>
-                    </div>
-                {% endif %}
-            </div>
+            {% else %}
+                <div class="time-section {% if partida.vencedor == partida.time_a %}time-vencedor{% endif %}">
+                    <div class="time-nome">{{ time_a_display }}</div>
+                    <div class="time-pontos">{{ partida.pontos_time_a }}</div>
+                </div>
+            {% endif %}
+
+            <div class="vs-divider">VS</div>
+
+            {% if partida.status == 'em_andamento' %}
+                <form method="post" action="{% url 'adicionar_ponto' partida.pk partida.time_b.pk %}" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="time-section {% if partida.vencedor == partida.time_b %}time-vencedor{% endif %}" style="border: none; background: none; width: 100%;">
+                        <div class="time-nome">{{ time_b_display }}</div>
+                        <div class="time-pontos">{{ partida.pontos_time_b }}</div>
+                    </button>
+                </form>
+            {% else %}
+                <div class="time-section {% if partida.vencedor == partida.time_b %}time-vencedor{% endif %}">
+                    <div class="time-nome">{{ time_b_display }}</div>
+                    <div class="time-pontos">{{ partida.pontos_time_b }}</div>
+                </div>
+            {% endif %}
         </div>
         
-        {% if eventos %}
-            <div class="historico-pontos">
-                <h5 class="mt-4 mb-3"><i class="bi bi-list-ol"></i> Histórico de Pontos</h5>
-                <div class="list-group">
-                    {% for evento in eventos %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between">
-                                <span>
-                                    <strong>Ponto #{{ evento.sequencia }}</strong> - 
-                                    {{ evento.time.nome }}
-                                </span>
-                                <small class="text-muted">
-                                    {{ evento.timestamp|date:"H:i:s" }}
-                                </small>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
+        {% if partida.status == 'agendada' %}
+            <form method="post" action="{% url 'iniciar_partida' partida.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-iniciar">
+                    <i class="bi bi-play-circle-fill"></i> Iniciar Partida
+                </button>
+            </form>
         {% endif %}
     </div>
+    
+    {% if partida.start_time or partida.vencedor %}
+        <div class="info-card">
+            {% if partida.start_time %}
+                <div class="info-item">
+                    <i class="bi bi-clock"></i>
+                    <div>
+                        <strong>Início:</strong> {{ partida.start_time|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if partida.end_time %}
+                <div class="info-item">
+                    <i class="bi bi-clock-fill"></i>
+                    <div>
+                        <strong>Término:</strong> {{ partida.end_time|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <i class="bi bi-hourglass-split"></i>
+                    <div>
+                        <strong>Duração:</strong> {{ partida.duracao }}
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if partida.vencedor %}
+                <div class="vencedor-badge">
+                    <i class="bi bi-trophy-fill"></i> Vencedor: {{ partida.vencedor.nome }}
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    {% if eventos %}
+        <div class="historico-card">
+            <div class="historico-titulo">
+                <i class="bi bi-list-ol"></i> Histórico de Pontos
+            </div>
+            {% for evento in eventos %}
+                <div class="historico-item">
+                    <span>
+                        <strong>Ponto #{{ evento.sequencia }}</strong> - {{ evento.time.nome }}
+                    </span>
+                    <small class="text-muted">
+                        {{ evento.timestamp|date:"H:i:s" }}
+                    </small>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

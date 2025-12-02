@@ -103,8 +103,8 @@ class Partida(models.Model):
     def verificar_vencedor(self):
         """
         Verifica se há um vencedor conforme as regras:
-        - Até 11x11: primeiro a 12 com 2 de diferença
-        - A partir de 11x11: primeiro a 14 (sem exigir diferença)
+        - Até 9x9: primeiro a 10 com 2 de diferença
+        - A partir de 9x9: primeiro a 12 (sem exigir diferença)
 
         Returns:
             Time ou None
@@ -112,18 +112,18 @@ class Partida(models.Model):
         a = self.pontos_time_a
         b = self.pontos_time_b
 
-        # Regra especial: a partir de 11x11
-        if a >= 11 and b >= 11:
-            # Vence quem chegar a 14 primeiro
-            if a >= 14:
+        # Regra especial: a partir de 9x9
+        if a >= 9 and b >= 9:
+            # Vence quem chegar a 12 primeiro
+            if a >= 12:
                 return self.time_a
-            elif b >= 14:
+            elif b >= 12:
                 return self.time_b
         else:
-            # Regra padrão: 12 pontos com 2 de diferença
-            if a >= 12 and (a - b) >= 2:
+            # Regra padrão: 10 pontos com 2 de diferença
+            if a >= 10 and (a - b) >= 2:
                 return self.time_a
-            elif b >= 12 and (b - a) >= 2:
+            elif b >= 10 and (b - a) >= 2:
                 return self.time_b
 
         return None

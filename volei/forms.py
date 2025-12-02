@@ -50,9 +50,18 @@ class PartidaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from datetime import date
         hoje = date.today()
-        times_hoje = Time.objects.filter(data=hoje)
+        times_hoje = Time.objects.filter(data=hoje).prefetch_related('jogadores')
         self.fields['time_a'].queryset = times_hoje
         self.fields['time_b'].queryset = times_hoje
+
+        self.fields['time_a'].label_from_instance = self.label_time_com_jogador
+        self.fields['time_b'].label_from_instance = self.label_time_com_jogador
+
+    def label_time_com_jogador(self, obj):
+        primeiro_jogador = obj.jogadores.first()
+        if primeiro_jogador:
+            return f"{obj.nome} - {primeiro_jogador.nome}"
+        return obj.nome
 
     def clean(self):
         cleaned_data = super().clean()

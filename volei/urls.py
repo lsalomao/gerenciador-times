@@ -16,6 +16,7 @@ urlpatterns = [
 
     path('partidas/', views.listar_partidas, name='listar_partidas'),
     path('partidas/nova/', views.criar_partida, name='criar_partida'),
+    path('partidas/terminar-dia/', views.terminar_dia, name='terminar_dia'),
     path('partidas/<int:pk>/', views.detalhe_partida, name='detalhe_partida'),
     path('partidas/<int:pk>/iniciar/', views.iniciar_partida, name='iniciar_partida'),
     path('partidas/<int:pk>/ponto/<int:time_id>/', views.adicionar_ponto, name='adicionar_ponto'),
