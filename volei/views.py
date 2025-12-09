@@ -262,9 +262,7 @@ def equilibrar_times(jogadores, num_times):
     times, posicoes_por_time, jogadores_usados, tantofaz_usados = distribuir_titulares(
         jogadores_ordenados,
         jogadores_tantofaz,
-        num_times,
-        set(),
-        set()
+        num_times
     )
 
     reservas = distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times, jogadores_usados, tantofaz_usados)
