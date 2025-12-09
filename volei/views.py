@@ -259,13 +259,15 @@ def equilibrar_times(jogadores, num_times):
 
     jogadores_ordenados, jogadores_tantofaz = preparar_jogadores(jogadores)
 
-    times, posicoes_por_time = distribuir_titulares(
+    times, posicoes_por_time, jogadores_usados, tantofaz_usados = distribuir_titulares(
         jogadores_ordenados,
         jogadores_tantofaz,
-        num_times
+        num_times,
+        set(),
+        set()
     )
 
-    reservas = distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times)
+    reservas = distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times, jogadores_usados, tantofaz_usados)
 
     times = otimizar_times_simulated_annealing(times, max_iteracoes=500)
 
@@ -322,6 +324,8 @@ def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
     Retorna:
         times: Lista de times com titulares
         posicoes_por_time: Conjunto de posições por time
+        jogadores_usados: Conjunto de índices dos jogadores já usados
+        tantofaz_usados: Conjunto de índices dos jogadores tantofaz já usados
     """
     times = [[] for _ in range(num_times)]
     posicoes_por_time = [set() for _ in range(num_times)]
@@ -384,6 +388,7 @@ def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
             logger.error("Loop infinito detectado na distribuição de titulares")
             break
 
+    tantofaz_usados = set()
     idx_tantofaz = 0
     rodada = 0
 
@@ -396,16 +401,17 @@ def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
             if len(times[idx_time]) < jogadores_por_time:
                 jogador = jogadores_tantofaz[idx_tantofaz]
                 times[idx_time].append(jogador)
+                tantofaz_usados.add(idx_tantofaz)
                 logger.debug(f"Time {idx_time+1}: adicionado {jogador.nome} (tantofaz, nível {jogador.nivel})")
                 idx_tantofaz += 1
         rodada += 1
 
     validar_diversidade_minima(times)
 
-    return times, posicoes_por_time
+    return times, posicoes_por_time, jogadores_usados, tantofaz_usados
 
 
-def distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times):
+def distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times, jogadores_usados, tantofaz_usados):
     """
     Distribui jogadores restantes como reservas.
 
@@ -415,20 +421,15 @@ def distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times):
     reservas = [[] for _ in range(num_times)]
     idx_time_reserva = 0
 
-    titulares_count = num_times * 4
-
-    for idx in range(titulares_count, len(jogadores_ordenados)):
-        if idx < len(jogadores_ordenados):
+    for idx in range(len(jogadores_ordenados)):
+        if idx not in jogadores_usados:
             reservas[idx_time_reserva].append(jogadores_ordenados[idx])
             idx_time_reserva = (idx_time_reserva + 1) % num_times
 
-    tantofaz_usados = min(titulares_count, len(jogadores_ordenados))
-    idx_tantofaz = max(0, titulares_count - len(jogadores_ordenados))
-
-    while idx_tantofaz < len(jogadores_tantofaz):
-        reservas[idx_time_reserva].append(jogadores_tantofaz[idx_tantofaz])
-        idx_time_reserva = (idx_time_reserva + 1) % num_times
-        idx_tantofaz += 1
+    for idx in range(len(jogadores_tantofaz)):
+        if idx not in tantofaz_usados:
+            reservas[idx_time_reserva].append(jogadores_tantofaz[idx])
+            idx_time_reserva = (idx_time_reserva + 1) % num_times
 
     logger.debug(f"Reservas distribuídas: {sum(len(r) for r in reservas)} jogadores")
 
