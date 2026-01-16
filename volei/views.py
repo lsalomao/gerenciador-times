@@ -194,6 +194,7 @@ def gerar_times(request):
             f'{num_times} times gerados com sucesso! '
             f'Score de equilíbrio: {score_percentual}% | '
             f'Diferença de níveis: {detalhes["diferenca_niveis"]} | '
+            f'Variância interna: {detalhes["variancia_interna_media"]} | '
             f'Diversidade: {detalhes["diversidade_media"]} | '
             f'Equilíbrio fixos/convidados: {detalhes["equilibrio_fixos"]}'
         )
@@ -232,6 +233,7 @@ def equilibrar_times(jogadores, num_times):
     - Jogadores restantes são distribuídos como reservas
     - Evita repetir posições preferidas no mesmo time
     - Jogadores "tantofaz" são distribuídos por último
+    - Máximo 1 jogador com nível < 3 por time (titulares + reservas) (titulares + reservas)
 
     Exemplos:
     - 20 jogadores → 4 times (4 titulares + 1 reserva cada)
@@ -249,6 +251,7 @@ def equilibrar_times(jogadores, num_times):
     6. Múltiplas métricas: Considera soma total e desvio padrão entre times
     7. Pré-indexação: Otimiza busca de jogadores por posição (O(1) vs O(n))
     8. Early stopping: Para otimização quando não há melhoria significativa
+    9. Restrição de nível: Máximo 1 jogador com nível < 3 por time (incluindo reservas) (incluindo reservas)
     """
 
     erros = validar_jogadores(jogadores)
@@ -267,11 +270,20 @@ def equilibrar_times(jogadores, num_times):
 
     reservas = distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times, jogadores_usados, tantofaz_usados)
 
-    times = otimizar_times_simulated_annealing(times, max_iteracoes=500)
+    times_completos = [times[i] + reservas[i] for i in range(num_times)]
+
+    times_completos = corrigir_nivel_minimo(times_completos)
+
+    times_completos = balancear_variancia_completa(times_completos)
+
+    times_titulares = [time[:4] for time in times_completos]
+    times_reservas = [time[4:] for time in times_completos]
+
+    times_titulares = otimizar_times_simulated_annealing(times_titulares, times_reservas, max_iteracoes=500)
 
     logger.info(f"Times gerados com sucesso")
 
-    return list(zip(times, reservas))
+    return list(zip(times_titulares, times_reservas))
 
 
 def preparar_jogadores(jogadores):
@@ -318,6 +330,9 @@ def preparar_jogadores(jogadores):
 def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
     """
     Distribui titulares usando Snake Draft com pré-indexação de posições.
+
+    Regra especial para levantadores:
+    - Só pode repetir levantador no mesmo time se todos os times já tiverem pelo menos 1 levantador
 
     Retorna:
         times: Lista de times com titulares
@@ -369,6 +384,12 @@ def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
                         continue
 
                     jogador = jogadores_ordenados[idx_jogador]
+
+                    if jogador.posicao_preferida == 'levantador':
+                        todos_tem_levantador = all('levantador' in posicoes_por_time[t] for t in range(num_times))
+                        if not todos_tem_levantador:
+                            continue
+
                     times[idx_time].append(jogador)
                     posicoes_por_time[idx_time].add(jogador.posicao_preferida)
                     jogadores_usados.add(idx_jogador)
@@ -407,6 +428,84 @@ def distribuir_titulares(jogadores_ordenados, jogadores_tantofaz, num_times):
     validar_diversidade_minima(times)
 
     return times, posicoes_por_time, jogadores_usados, tantofaz_usados
+
+
+def balancear_variancia_completa(times):
+    """
+    Reduz a variância interna dos times fazendo trocas estratégicas.
+    Trabalha com times completos (titulares + reservas).
+    Objetivo: evitar times com jogadores muito fortes e muito fracos juntos.
+    Respeita a regra de máximo 1 jogador com nível < 3 por time.
+    Respeita a regra de levantadores: só repete se todos os times tiverem pelo menos 1.
+    """
+    max_tentativas = 50
+    melhorias = 0
+
+    for tentativa in range(max_tentativas):
+        melhor_troca = None
+        melhor_reducao = 0
+
+        variancias_antes = []
+        for time in times:
+            if len(time) > 1:
+                niveis = [j.nivel for j in time]
+                media = sum(niveis) / len(niveis)
+                var = sum((n - media) ** 2 for n in niveis) / len(niveis)
+                variancias_antes.append(var)
+
+        variancia_total_antes = sum(variancias_antes)
+
+        for i in range(len(times)):
+            for j in range(i + 1, len(times)):
+                for idx_i in range(len(times[i])):
+                    for idx_j in range(len(times[j])):
+                        jogador_i = times[i][idx_i]
+                        jogador_j = times[j][idx_j]
+
+                        times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+                        nivel_baixo_i = sum(1 for jog in times[i] if jog.nivel < 3)
+                        nivel_baixo_j = sum(1 for jog in times[j] if jog.nivel < 3)
+
+                        if nivel_baixo_i > 1 or nivel_baixo_j > 1:
+                            times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+                            continue
+
+                        if not validar_regra_levantador(times):
+                            times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+                            continue
+
+                        variancias_depois = []
+                        for time in times:
+                            if len(time) > 1:
+                                niveis = [jog.nivel for jog in time]
+                                media = sum(niveis) / len(niveis)
+                                var = sum((n - media) ** 2 for n in niveis) / len(niveis)
+                                variancias_depois.append(var)
+
+                        variancia_total_depois = sum(variancias_depois)
+                        reducao = variancia_total_antes - variancia_total_depois
+
+                        if reducao > melhor_reducao:
+                            melhor_reducao = reducao
+                            melhor_troca = (i, j, idx_i, idx_j)
+
+                        times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+        if melhor_troca and melhor_reducao > 0.01:
+            i, j, idx_i, idx_j = melhor_troca
+            jogador_i = times[i][idx_i]
+            jogador_j = times[j][idx_j]
+            times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+            melhorias += 1
+            logger.info(f"Balanceamento de variância: {jogador_i.nome} (Time {i+1}) ↔ {jogador_j.nome} (Time {j+1}) - Redução: {melhor_reducao:.3f}")
+        else:
+            break
+
+    if melhorias > 0:
+        logger.info(f"Balanceamento inicial concluído: {melhorias} trocas realizadas")
+
+    return times
 
 
 def distribuir_reservas(jogadores_ordenados, jogadores_tantofaz, num_times, jogadores_usados, tantofaz_usados):
@@ -449,6 +548,161 @@ def validar_diversidade_minima(times):
             raise ValueError(f"Time {idx+1} não possui diversidade mínima de posições (mínimo: 2 posições diferentes)")
 
 
+def validar_nivel_minimo(times):
+    """
+    Valida se cada time tem no máximo 1 jogador com nível menor que 3.
+    Retorna True se válido, False caso contrário.
+    """
+    for idx, time in enumerate(times):
+        jogadores_nivel_baixo = sum(1 for j in time if j.nivel < 3)
+        if jogadores_nivel_baixo > 1:
+            logger.warning(f"Time {idx+1} tem {jogadores_nivel_baixo} jogadores com nível < 3")
+            return False
+    return True
+
+
+def validar_regra_levantador(times):
+    """
+    Valida a regra especial de levantadores:
+    - Só pode ter 2+ levantadores no mesmo time se TODOS os times tiverem pelo menos 1 levantador
+    Retorna True se válido, False caso contrário.
+    """
+    levantadores_por_time = []
+    for time in times:
+        count = sum(1 for j in time if hasattr(j, 'posicao_preferida') and j.posicao_preferida == 'levantador')
+        levantadores_por_time.append(count)
+
+    todos_tem_levantador = all(count >= 1 for count in levantadores_por_time)
+
+    for idx, count in enumerate(levantadores_por_time):
+        if count > 1 and not todos_tem_levantador:
+            logger.warning(f"Time {idx+1} tem {count} levantadores, mas nem todos os times têm pelo menos 1")
+            return False
+
+    return True
+
+
+def corrigir_nivel_minimo(times):
+    """
+    Corrige times que têm mais de 1 jogador com nível < 3,
+    tentando trocar com jogadores de outros times.
+    Considera titulares + reservas juntos.
+    """
+    if validar_nivel_minimo(times) and validar_regra_levantador(times):
+        return times
+
+    logger.info("Iniciando correção de distribuição de jogadores com nível < 3")
+
+    max_tentativas = 500
+    tentativa = 0
+    melhorias = 0
+
+    while (not validar_nivel_minimo(times) or not validar_regra_levantador(times)) and tentativa < max_tentativas:
+        tentativa += 1
+        troca_realizada = False
+
+        for i in range(len(times)):
+            jogadores_baixo_i = sum(1 for j in times[i] if j.nivel < 3)
+
+            if jogadores_baixo_i <= 1:
+                continue
+
+            for j in range(len(times)):
+                if i == j:
+                    continue
+
+                jogadores_baixo_j = sum(1 for jog in times[j] if jog.nivel < 3)
+
+                for idx_i, jogador_i in enumerate(times[i]):
+                    if jogador_i.nivel >= 3:
+                        continue
+
+                    for idx_j, jogador_j in enumerate(times[j]):
+                        if jogador_j.nivel >= 3:
+                            times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+                            novo_baixo_i = sum(1 for jog in times[i] if jog.nivel < 3)
+                            novo_baixo_j = sum(1 for jog in times[j] if jog.nivel < 3)
+
+                            if novo_baixo_i < jogadores_baixo_i and novo_baixo_j <= 1:
+                                if validar_regra_levantador(times):
+                                    logger.info(f"Correção nível: {jogador_i.nome} (Time {i+1}) ↔ {jogador_j.nome} (Time {j+1})")
+                                    melhorias += 1
+                                    troca_realizada = True
+                                    break
+                                else:
+                                    times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+                            else:
+                                times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+                    if troca_realizada:
+                        break
+
+                if troca_realizada:
+                    break
+
+            if troca_realizada:
+                break
+
+        if not troca_realizada:
+            for i in range(len(times)):
+                jogadores_baixo_i = sum(1 for j in times[i] if j.nivel < 3)
+
+                if jogadores_baixo_i <= 1:
+                    continue
+
+                for j in range(len(times)):
+                    if i == j:
+                        continue
+
+                    jogadores_baixo_j = sum(1 for jog in times[j] if jog.nivel < 3)
+
+                    if jogadores_baixo_j >= jogadores_baixo_i:
+                        continue
+
+                    for idx_i, jogador_i in enumerate(times[i]):
+                        if jogador_i.nivel >= 3:
+                            continue
+
+                        for idx_j, jogador_j in enumerate(times[j]):
+                            times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+                            novo_baixo_i = sum(1 for jog in times[i] if jog.nivel < 3)
+                            novo_baixo_j = sum(1 for jog in times[j] if jog.nivel < 3)
+
+                            if novo_baixo_i < jogadores_baixo_i and novo_baixo_j < jogadores_baixo_j + 2:
+                                if validar_regra_levantador(times):
+                                    logger.info(f"Correção flexível: {jogador_i.nome} (Time {i+1}) ↔ {jogador_j.nome} (Time {j+1})")
+                                    melhorias += 1
+                                    troca_realizada = True
+                                    break
+                                else:
+                                    times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+                            else:
+                                times[i][idx_i], times[j][idx_j] = times[j][idx_j], times[i][idx_i]
+
+                        if troca_realizada:
+                            break
+
+                    if troca_realizada:
+                        break
+
+                if troca_realizada:
+                    break
+
+        if not troca_realizada:
+            break
+
+    if melhorias > 0:
+        logger.info(f"Correção de nível concluída: {melhorias} trocas realizadas")
+
+    if not validar_nivel_minimo(times):
+        logger.warning("Não foi possível corrigir completamente a distribuição de jogadores com nível < 3")
+        logger.warning("Continuando com a melhor distribuição possível")
+
+    return times
+
+
 def calcular_metricas_times(times):
     """
     Calcula métricas avançadas de equilíbrio dos times.
@@ -458,20 +712,36 @@ def calcular_metricas_times(times):
         detalhes (dict): Dicionário com métricas individuais
 
     Métricas consideradas:
-    - 40% equilíbrio de níveis (diferença entre times)
-    - 30% diversidade de posições (variedade no time)
-    - 20% proporção fixos/convidados (distribuição equilibrada)
-    - 10% desvio padrão geral
+    - 30% equilíbrio de níveis entre times (diferença de somas)
+    - 25% equilíbrio interno dos times (baixa variância dentro de cada time)
+    - 20% diversidade de posições (variedade no time)
+    - 15% proporção fixos/convidados (distribuição equilibrada)
+    - 10% desvio padrão geral entre times
     """
     if not times or not any(times):
         return 0.0, {}
 
-    # Métrica 1: Equilíbrio de níveis (40%)
+    # Métrica 1: Equilíbrio de níveis entre times (30%)
     somas = [sum(j.nivel for j in time) for time in times]
     diferenca_niveis = max(somas) - min(somas)
     score_niveis = max(0, 1 - (diferenca_niveis / 10))
 
-    # Métrica 2: Diversidade de posições (30%)
+    # Métrica 2: Equilíbrio interno dos times - penaliza alta variância (25%)
+    variancias_internas = []
+    for time in times:
+        if len(time) > 1:
+            niveis = [j.nivel for j in time]
+            media_time = sum(niveis) / len(niveis)
+            variancia_time = sum((n - media_time) ** 2 for n in niveis) / len(niveis)
+            variancias_internas.append(variancia_time)
+
+    if variancias_internas:
+        variancia_media = sum(variancias_internas) / len(variancias_internas)
+        score_variancia_interna = max(0, 1 - (variancia_media / 2))
+    else:
+        score_variancia_interna = 1.0
+
+    # Métrica 3: Diversidade de posições (20%)
     diversidades = []
     for time in times:
         posicoes_unicas = len(set(
@@ -481,7 +751,7 @@ def calcular_metricas_times(times):
         diversidades.append(posicoes_unicas / 4)
     score_posicoes = sum(diversidades) / len(diversidades) if diversidades else 0
 
-    # Métrica 3: Proporção fixos/convidados (20%)
+    # Métrica 4: Proporção fixos/convidados (15%)
     proporcoes = []
     for time in times:
         if len(time) > 0:
@@ -494,7 +764,7 @@ def calcular_metricas_times(times):
     else:
         score_proporcao = 0
 
-    # Métrica 4: Desvio padrão das somas (10%)
+    # Métrica 5: Desvio padrão das somas entre times (10%)
     media = sum(somas) / len(somas)
     variancia = sum((s - media) ** 2 for s in somas) / len(somas)
     desvio_padrao = variancia ** 0.5
@@ -502,14 +772,16 @@ def calcular_metricas_times(times):
 
     # Score final ponderado
     score_final = (
-        0.4 * score_niveis +
-        0.3 * score_posicoes +
-        0.2 * score_proporcao +
-        0.1 * score_desvio
+        0.30 * score_niveis +
+        0.25 * score_variancia_interna +
+        0.20 * score_posicoes +
+        0.15 * score_proporcao +
+        0.10 * score_desvio
     )
 
     detalhes = {
         'diferenca_niveis': diferenca_niveis,
+        'variancia_interna_media': round(variancia_media if variancias_internas else 0, 2),
         'diversidade_media': round(score_posicoes, 2),
         'equilibrio_fixos': round(score_proporcao, 2),
         'desvio_padrao': round(desvio_padrao, 2),
@@ -519,7 +791,7 @@ def calcular_metricas_times(times):
     return score_final, detalhes
 
 
-def otimizar_times_simulated_annealing(times, max_iteracoes=500, temperatura_inicial=1.0, taxa_resfriamento=0.95):
+def otimizar_times_simulated_annealing(times_titulares, times_reservas, max_iteracoes=500, temperatura_inicial=1.0, taxa_resfriamento=0.95):
     """
     Otimiza o equilíbrio dos times usando Simulated Annealing com early stopping.
 
@@ -528,6 +800,8 @@ def otimizar_times_simulated_annealing(times, max_iteracoes=500, temperatura_ini
     - Temperatura controla a probabilidade de aceitar soluções piores
     - Mais eficiente e explora melhor o espaço de soluções
     - Early stopping: para quando não há melhoria significativa
+    - Respeita a regra: máximo 1 jogador com nível < 3 por time (titulares + reservas)
+    - Respeita a regra de levantadores: só repete se todos os times tiverem pelo menos 1
 
     Parâmetros:
     - max_iteracoes: número máximo de tentativas (padrão: 500)
@@ -536,10 +810,12 @@ def otimizar_times_simulated_annealing(times, max_iteracoes=500, temperatura_ini
     """
     import math
 
-    melhor_times = [time[:] for time in times]
+    times_completos = [times_titulares[i] + times_reservas[i] for i in range(len(times_titulares))]
+
+    melhor_times = [time[:] for time in times_titulares]
     melhor_score, _ = calcular_metricas_times(melhor_times)
 
-    times_atual = [time[:] for time in times]
+    times_atual = [time[:] for time in times_titulares]
     score_atual = melhor_score
     temperatura = temperatura_inicial
 
@@ -558,6 +834,15 @@ def otimizar_times_simulated_annealing(times, max_iteracoes=500, temperatura_ini
         idx_j = random.randint(0, len(times_atual[j]) - 1)
 
         times_atual[i][idx_i], times_atual[j][idx_j] = times_atual[j][idx_j], times_atual[i][idx_i]
+
+        times_completos_temp = [times_atual[k] + times_reservas[k] for k in range(len(times_atual))]
+        if not validar_nivel_minimo(times_completos_temp):
+            times_atual[i][idx_i], times_atual[j][idx_j] = times_atual[j][idx_j], times_atual[i][idx_i]
+            continue
+
+        if not validar_regra_levantador(times_completos_temp):
+            times_atual[i][idx_i], times_atual[j][idx_j] = times_atual[j][idx_j], times_atual[i][idx_i]
+            continue
 
         novo_score, _ = calcular_metricas_times(times_atual)
 
