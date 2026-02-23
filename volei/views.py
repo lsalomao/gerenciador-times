@@ -369,17 +369,6 @@ def validar_e_corrigir_nivel_minimo(times):
 
 
 def gerar_times_simplificado(jogadores_confirmados, data_jogo):
-    """
-    Algoritmo simplificado de geração de times.
-
-    Ordem de distribuição (Snake Draft):
-    1. Levantadores
-    2. Líberos
-    3. Fixos por nível (5 → 4 → 3 → 2 → 1)
-    4. Convidados por nível (5 → 4 → 3 → 2 → 1)
-
-    Retorna lista de tuplas (titulares, reservas) por time.
-    """
     logger.info(f"Iniciando geração simplificada com {len(jogadores_confirmados)} jogadores")
 
     jogadores = selecionar_jogadores(jogadores_confirmados, max_jogadores=20)
@@ -390,27 +379,52 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
 
     logger.info(f"Gerando {num_times} times")
 
-    jogadores_ordenados = sorted(jogadores, key=lambda j: j.nivel, reverse=True)
+    levantadores = sorted([j for j in jogadores if j.posicao_preferida == 'levantador'], key=lambda j: j.nivel, reverse=True)
+    liberos = sorted([j for j in jogadores if j.posicao_preferida == 'libero'], key=lambda j: j.nivel, reverse=True)
+    outros = sorted([j for j in jogadores if j.posicao_preferida not in ('levantador', 'libero')], key=lambda j: j.nivel, reverse=True)
 
-    times = distribuir_snake_draft(jogadores_ordenados, num_times, jogadores_por_time=4)
+    times = [[] for _ in range(num_times)]
+    reservas = []
 
-    jogadores_usados = set()
-    for time in times:
-        jogadores_usados.update(time)
+    def soma_time(i):
+        return sum(j.nivel for j in times[i])
 
-    jogadores_restantes = [j for j in jogadores if j not in jogadores_usados]
+    for jogador in levantadores:
+        times_sem_levantador = [i for i in range(num_times) if not any(j.posicao_preferida == 'levantador' for j in times[i])]
+        if times_sem_levantador:
+            idx = min(times_sem_levantador, key=soma_time)
+            times[idx].append(jogador)
+        else:
+            reservas.append(jogador)
 
-    if jogadores_restantes:
-        times = distribuir_reservas_round_robin(jogadores_restantes, times)
+    for jogador in liberos:
+        times_sem_libero = [i for i in range(num_times) if not any(j.posicao_preferida == 'libero' for j in times[i])]
+        if times_sem_libero:
+            idx = min(times_sem_libero, key=soma_time)
+            times[idx].append(jogador)
+        else:
+            reservas.append(jogador)
+
+    for jogador in outros:
+        times_com_vaga = [i for i in range(num_times) if len(times[i]) < 4]
+        if times_com_vaga:
+            idx = min(times_com_vaga, key=soma_time)
+            times[idx].append(jogador)
+        else:
+            reservas.append(jogador)
+
+    for jogador in reservas:
+        idx = min(range(num_times), key=lambda i: len(times[i]))
+        times[idx].append(jogador)
 
     times = validar_e_corrigir_nivel_minimo(times)
 
     times_titulares = [time[:4] for time in times]
     times_reservas = [time[4:] for time in times]
 
-    for i, (titulares, reservas) in enumerate(zip(times_titulares, times_reservas), 1):
+    for i, (titulares, res) in enumerate(zip(times_titulares, times_reservas), 1):
         soma = sum(j.nivel for j in titulares)
-        logger.info(f"Time {i}: {len(titulares)} titulares + {len(reservas)} reservas | Soma níveis: {soma}")
+        logger.info(f"Time {i}: {len(titulares)} titulares + {len(res)} reservas | Soma níveis: {soma}")
 
     return list(zip(times_titulares, times_reservas))
 
