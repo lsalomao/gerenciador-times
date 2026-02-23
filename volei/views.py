@@ -379,9 +379,27 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
 
     logger.info(f"Gerando {num_times} times")
 
-    levantadores = sorted([j for j in jogadores if j.posicao_preferida == 'levantador'], key=lambda j: j.nivel, reverse=True)
-    liberos = sorted([j for j in jogadores if j.posicao_preferida == 'libero'], key=lambda j: j.nivel, reverse=True)
-    outros = sorted([j for j in jogadores if j.posicao_preferida not in ('levantador', 'libero')], key=lambda j: j.nivel, reverse=True)
+    def embaralhar_por_nivel(lista):
+        resultado = []
+        nivel_atual = None
+        grupo = []
+        for j in lista:
+            if j.nivel != nivel_atual:
+                if grupo:
+                    random.shuffle(grupo)
+                    resultado.extend(grupo)
+                grupo = [j]
+                nivel_atual = j.nivel
+            else:
+                grupo.append(j)
+        if grupo:
+            random.shuffle(grupo)
+            resultado.extend(grupo)
+        return resultado
+
+    levantadores = embaralhar_por_nivel(sorted([j for j in jogadores if j.posicao_preferida == 'levantador'], key=lambda j: j.nivel, reverse=True))
+    liberos = embaralhar_por_nivel(sorted([j for j in jogadores if j.posicao_preferida == 'libero'], key=lambda j: j.nivel, reverse=True))
+    outros = embaralhar_por_nivel(sorted([j for j in jogadores if j.posicao_preferida not in ('levantador', 'libero')], key=lambda j: j.nivel, reverse=True))
 
     times = [[] for _ in range(num_times)]
     reservas = []
