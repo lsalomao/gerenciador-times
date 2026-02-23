@@ -260,36 +260,19 @@ def separar_por_categoria(jogadores):
 
 def distribuir_snake_draft(jogadores_ordenados, num_times, jogadores_por_time=4):
     """
-    Distribui jogadores usando Snake Draft.
-
-    Rodada PAR: Time 1 → 2 → 3 → 4
-    Rodada ÍMPAR: Time 4 → 3 → 2 → 1
-
-    Retorna lista de times com jogadores.
+    Distribui jogadores priorizando equilíbrio de soma de níveis.
+    Cada jogador vai para o time com menor soma atual (greedy).
+    Jogadores devem estar ordenados por nível decrescente.
     """
     times = [[] for _ in range(num_times)]
-    rodada = 0
-    idx_jogador = 0
-    total_necessario = num_times * jogadores_por_time
 
-    while idx_jogador < len(jogadores_ordenados) and idx_jogador < total_necessario:
-        if rodada % 2 == 0:
-            ordem_times = range(num_times)
-        else:
-            ordem_times = range(num_times - 1, -1, -1)
-
-        for idx_time in ordem_times:
-            if idx_jogador >= len(jogadores_ordenados):
-                break
-            if len(times[idx_time]) >= jogadores_por_time:
-                continue
-
-            jogador = jogadores_ordenados[idx_jogador]
-            times[idx_time].append(jogador)
-            logger.debug(f"Time {idx_time+1}: {jogador.nome} (nível {jogador.nivel})")
-            idx_jogador += 1
-
-        rodada += 1
+    for jogador in jogadores_ordenados:
+        times_com_vaga = [i for i in range(num_times) if len(times[i]) < jogadores_por_time]
+        if not times_com_vaga:
+            break
+        idx_time = min(times_com_vaga, key=lambda i: sum(j.nivel for j in times[i]))
+        times[idx_time].append(jogador)
+        logger.debug(f"Time {idx_time+1}: {jogador.nome} (nível {jogador.nivel})")
 
     return times
 
@@ -407,17 +390,7 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
 
     logger.info(f"Gerando {num_times} times")
 
-    categorias = separar_por_categoria(jogadores)
-
-    jogadores_ordenados = []
-    jogadores_ordenados.extend(categorias['levantadores'])
-    jogadores_ordenados.extend(categorias['liberos'])
-
-    for nivel in range(5, 0, -1):
-        jogadores_ordenados.extend(categorias['fixos_por_nivel'].get(nivel, []))
-
-    for nivel in range(5, 0, -1):
-        jogadores_ordenados.extend(categorias['convidados_por_nivel'].get(nivel, []))
+    jogadores_ordenados = sorted(jogadores, key=lambda j: j.nivel, reverse=True)
 
     times = distribuir_snake_draft(jogadores_ordenados, num_times, jogadores_por_time=4)
 
