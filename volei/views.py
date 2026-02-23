@@ -389,13 +389,11 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
     """
     Algoritmo simplificado de geração de times.
 
-    Ordem de distribuição:
-    1. 1 Levantador por time (prioriza nível < 5)
-    2. 1 Líbero por time (prioriza nível < 5)
-    3. Distribuição equilibrada de jogadores nível 5 (máx 2 por time)
-    4. Snake Draft: Fixos por nível (4 → 3 → 2 → 1)
-    5. Snake Draft: Convidados por nível (4 → 3 → 2 → 1)
-    6. Jogadores nível 5 extras vão para o time mais fraco
+    Ordem de distribuição (Snake Draft):
+    1. Levantadores
+    2. Líberos
+    3. Fixos por nível (5 → 4 → 3 → 2 → 1)
+    4. Convidados por nível (5 → 4 → 3 → 2 → 1)
 
     Retorna lista de tuplas (titulares, reservas) por time.
     """
@@ -411,162 +409,26 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
 
     categorias = separar_por_categoria(jogadores)
 
-    times = [[] for _ in range(num_times)]
-    jogadores_usados = set()
-
-    # Separar levantadores e líberos por nível
-    levantadores = categorias['levantadores'][:]
-    levantadores_nivel_5 = [j for j in levantadores if j.nivel == 5]
-    levantadores_nivel_baixo = [j for j in levantadores if j.nivel < 5]
-    random.shuffle(levantadores_nivel_5)
-    random.shuffle(levantadores_nivel_baixo)
-
-    liberos = categorias['liberos'][:]
-    liberos_nivel_5 = [j for j in liberos if j.nivel == 5]
-    liberos_nivel_baixo = [j for j in liberos if j.nivel < 5]
-    random.shuffle(liberos_nivel_5)
-    random.shuffle(liberos_nivel_baixo)
-
-    # Coletar todos os jogadores nível 5 (exceto levantadores/líberos que serão tratados separadamente)
-    fixos_nivel_5 = categorias['fixos_por_nivel'].get(5, [])[:]
-    convidados_nivel_5 = categorias['convidados_por_nivel'].get(5, [])[:]
-    random.shuffle(fixos_nivel_5)
-    random.shuffle(convidados_nivel_5)
-
-    # Lista de todos os jogadores nível 5 disponíveis para distribuição equilibrada
-    todos_nivel_5 = fixos_nivel_5 + convidados_nivel_5
-    random.shuffle(todos_nivel_5)
-
-    # Contador de jogadores nível 5 por time
-    count_nivel_5_por_time = [0] * num_times
-
-    # Função auxiliar para encontrar time com menos nível 5
-    def encontrar_time_para_nivel_5():
-        min_count = min(count_nivel_5_por_time[i] for i in range(num_times) if len(times[i]) < 4)
-        candidatos = [i for i in range(num_times) if len(times[i]) < 4 and count_nivel_5_por_time[i] == min_count]
-        return random.choice(candidatos) if candidatos else None
-
-    # 1. PRIMEIRO: Distribuir 1 levantador por time (prioriza nível < 5)
-    for i in range(num_times):
-        if i < len(levantadores_nivel_baixo):
-            # Usar levantador nível < 5
-            times[i].append(levantadores_nivel_baixo[i])
-            jogadores_usados.add(levantadores_nivel_baixo[i].id)
-            logger.info(f"Time {i+1}: Levantador {levantadores_nivel_baixo[i].nome} (nível {levantadores_nivel_baixo[i].nivel})")
-        elif i - len(levantadores_nivel_baixo) < len(levantadores_nivel_5):
-            # Usar levantador nível 5
-            idx = i - len(levantadores_nivel_baixo)
-            times[i].append(levantadores_nivel_5[idx])
-            jogadores_usados.add(levantadores_nivel_5[idx].id)
-            count_nivel_5_por_time[i] += 1
-            logger.info(f"Time {i+1}: Levantador {levantadores_nivel_5[idx].nome} (nível 5)")
-
-    # 2. SEGUNDO: Distribuir 1 líbero por time (prioriza nível < 5)
-    for i in range(num_times):
-        if len(times[i]) >= 4:
-            continue
-
-        if i < len(liberos_nivel_baixo):
-            # Usar líbero nível < 5
-            times[i].append(liberos_nivel_baixo[i])
-            jogadores_usados.add(liberos_nivel_baixo[i].id)
-            logger.info(f"Time {i+1}: Líbero {liberos_nivel_baixo[i].nome} (nível {liberos_nivel_baixo[i].nivel})")
-        elif i - len(liberos_nivel_baixo) < len(liberos_nivel_5):
-            # Usar líbero nível 5
-            idx = i - len(liberos_nivel_baixo)
-            times[i].append(liberos_nivel_5[idx])
-            jogadores_usados.add(liberos_nivel_5[idx].id)
-            count_nivel_5_por_time[i] += 1
-            logger.info(f"Time {i+1}: Líbero {liberos_nivel_5[idx].nome} (nível 5)")
-
-    # 3. TERCEIRO: Distribuir jogadores nível 5 de forma equilibrada (máx 2 por time)
-    # Coletar levantadores/líberos nível 5 não usados
-    levantadores_nivel_5_restantes = [j for j in levantadores_nivel_5 if j.id not in jogadores_usados]
-    liberos_nivel_5_restantes = [j for j in liberos_nivel_5 if j.id not in jogadores_usados]
-
-    # Adicionar à lista de nível 5
-    todos_nivel_5 = levantadores_nivel_5_restantes + liberos_nivel_5_restantes + todos_nivel_5
-
-    idx_nivel_5 = 0
-
-    # Distribuir até completar 2 nível 5 por time (ou acabar os jogadores)
-    while idx_nivel_5 < len(todos_nivel_5):
-        # Encontrar time com menos nível 5 e que tenha vaga
-        idx_time = encontrar_time_para_nivel_5()
-        if idx_time is None:
-            break
-
-        if count_nivel_5_por_time[idx_time] >= 2:
-            # Todos os times já têm 2 nível 5, parar distribuição inicial
-            break
-
-        times[idx_time].append(todos_nivel_5[idx_nivel_5])
-        jogadores_usados.add(todos_nivel_5[idx_nivel_5].id)
-        count_nivel_5_por_time[idx_time] += 1
-        logger.info(f"Time {idx_time+1}: Nível 5 ({count_nivel_5_por_time[idx_time]}º) - {todos_nivel_5[idx_nivel_5].nome}")
-        idx_nivel_5 += 1
-
-    # 4. QUARTO: Distribuir restante usando Snake Draft (níveis 4-1)
     jogadores_ordenados = []
+    jogadores_ordenados.extend(categorias['levantadores'])
+    jogadores_ordenados.extend(categorias['liberos'])
 
-    for nivel in range(4, 0, -1):
-        fixos_nivel = [j for j in categorias['fixos_por_nivel'].get(nivel, []) if j.id not in jogadores_usados]
-        random.shuffle(fixos_nivel)
-        jogadores_ordenados.extend(fixos_nivel)
+    for nivel in range(5, 0, -1):
+        jogadores_ordenados.extend(categorias['fixos_por_nivel'].get(nivel, []))
 
-    for nivel in range(4, 0, -1):
-        convidados_nivel = [j for j in categorias['convidados_por_nivel'].get(nivel, []) if j.id not in jogadores_usados]
-        random.shuffle(convidados_nivel)
-        jogadores_ordenados.extend(convidados_nivel)
+    for nivel in range(5, 0, -1):
+        jogadores_ordenados.extend(categorias['convidados_por_nivel'].get(nivel, []))
 
-    # Distribuir usando Snake Draft até completar 4 por time
-    rodada = 0
-    idx_jogador = 0
+    times = distribuir_snake_draft(jogadores_ordenados, num_times, jogadores_por_time=4)
 
-    while idx_jogador < len(jogadores_ordenados):
-        if all(len(time) >= 4 for time in times):
-            break
+    jogadores_usados = set()
+    for time in times:
+        jogadores_usados.update(time)
 
-        if rodada % 2 == 0:
-            ordem_times = range(num_times)
-        else:
-            ordem_times = range(num_times - 1, -1, -1)
+    jogadores_restantes = [j for j in jogadores if j not in jogadores_usados]
 
-        for idx_time in ordem_times:
-            if idx_jogador >= len(jogadores_ordenados):
-                break
-            if len(times[idx_time]) >= 4:
-                continue
-
-            jogador = jogadores_ordenados[idx_jogador]
-            times[idx_time].append(jogador)
-            jogadores_usados.add(jogador.id)
-            logger.debug(f"Time {idx_time+1}: {jogador.nome} (nível {jogador.nivel})")
-            idx_jogador += 1
-
-        rodada += 1
-
-    # 5. QUINTO: Distribuir jogadores nível 5 extras (3º+) para o time mais fraco
-    nivel_5_restantes = todos_nivel_5[idx_nivel_5:]
-    for jogador_nivel_5 in nivel_5_restantes:
-        # Encontrar o time mais fraco (menor soma de níveis)
-        somas = [sum(j.nivel for j in time) for time in times]
-        idx_time_mais_fraco = somas.index(min(somas))
-
-        times[idx_time_mais_fraco].append(jogador_nivel_5)
-        jogadores_usados.add(jogador_nivel_5.id)
-        count_nivel_5_por_time[idx_time_mais_fraco] += 1
-        logger.info(f"Time {idx_time_mais_fraco+1}: Nível 5 extra - {jogador_nivel_5.nome} (time mais fraco)")
-
-    # 6. SEXTO: Distribuir reservas (jogadores restantes)
-    jogadores_restantes = [j for j in jogadores if j.id not in jogadores_usados]
     if jogadores_restantes:
-        idx_time = 0
-        for jogador in jogadores_restantes:
-            times[idx_time].append(jogador)
-            jogadores_usados.add(jogador.id)
-            logger.debug(f"Reserva Time {idx_time+1}: {jogador.nome} (nível {jogador.nivel})")
-            idx_time = (idx_time + 1) % len(times)
+        times = distribuir_reservas_round_robin(jogadores_restantes, times)
 
     times = validar_e_corrigir_nivel_minimo(times)
 
@@ -575,8 +437,7 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
 
     for i, (titulares, reservas) in enumerate(zip(times_titulares, times_reservas), 1):
         soma = sum(j.nivel for j in titulares)
-        count_nivel_5 = sum(1 for j in titulares if j.nivel == 5)
-        logger.info(f"Time {i}: {len(titulares)} titulares + {len(reservas)} reservas | Soma níveis: {soma} | Nível 5: {count_nivel_5}")
+        logger.info(f"Time {i}: {len(titulares)} titulares + {len(reservas)} reservas | Soma níveis: {soma}")
 
     return list(zip(times_titulares, times_reservas))
 
