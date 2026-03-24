@@ -20,6 +20,7 @@ class Jogador(models.Model):
     posicao_preferida = models.CharField(max_length=20, choices=POSICOES, blank=True, null=True)
     tipo_jogador = models.CharField(max_length=20, choices=TIPO_JOGADOR, default='fixo')
     ativo = models.BooleanField(default=True)
+    data_nascimento = models.DateField(blank=True, null=True, verbose_name='Data de Nascimento')
 
     def __str__(self):
         return f"{self.nome} (Nível {self.nivel})"

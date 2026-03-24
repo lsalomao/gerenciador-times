@@ -7,6 +7,7 @@ urlpatterns = [
     path('jogadores/novo/', views.JogadorCreateView.as_view(), name='jogador_create'),
     path('jogadores/<int:pk>/editar/', views.JogadorUpdateView.as_view(), name='jogador_update'),
     path('jogadores/<int:pk>/excluir/', views.JogadorDeleteView.as_view(), name='jogador_delete'),
+    path('jogadores/aniversariantes/', views.aniversariantes_mes, name='aniversariantes_mes'),
     path('presencas/', views.presenca_list, name='presenca_list'),
     path('presencas/gerenciar/', views.gerenciar_presencas, name='gerenciar_presencas'),
     path('times/', views.time_list, name='time_list'),

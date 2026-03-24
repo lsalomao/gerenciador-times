@@ -62,6 +62,33 @@ class JogadorDeleteView(DeleteView):
         messages.success(self.request, 'Jogador excluído com sucesso!')
         return super().form_valid(form)
 
+def aniversariantes_mes(request):
+    mes = request.GET.get('mes')
+    if mes:
+        try:
+            mes = int(mes)
+        except ValueError:
+            mes = date.today().month
+    else:
+        mes = date.today().month
+
+    jogadores = Jogador.objects.filter(
+        data_nascimento__isnull=False,
+        data_nascimento__month=mes
+    ).order_by('data_nascimento__day', 'nome')
+
+    MESES = [
+        (1, 'Janeiro'), (2, 'Fevereiro'), (3, 'Março'), (4, 'Abril'),
+        (5, 'Maio'), (6, 'Junho'), (7, 'Julho'), (8, 'Agosto'),
+        (9, 'Setembro'), (10, 'Outubro'), (11, 'Novembro'), (12, 'Dezembro'),
+    ]
+
+    return render(request, 'volei/aniversariantes.html', {
+        'jogadores': jogadores,
+        'mes_atual': mes,
+        'meses': MESES,
+    })
+
 def presenca_list(request):
     presencas = Presenca.objects.filter(confirmado=True).select_related('jogador').order_by('-data')
     presencas_por_data = defaultdict(list)

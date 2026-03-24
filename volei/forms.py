@@ -4,13 +4,14 @@ from .models import Jogador, Presenca, Time, Partida
 class JogadorForm(forms.ModelForm):
     class Meta:
         model = Jogador
-        fields = ['nome', 'nivel', 'posicao_preferida', 'tipo_jogador', 'ativo']
+        fields = ['nome', 'nivel', 'posicao_preferida', 'tipo_jogador', 'ativo', 'data_nascimento']
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do jogador'}),
             'nivel': forms.Select(attrs={'class': 'form-select'}),
             'posicao_preferida': forms.Select(attrs={'class': 'form-select'}),
             'tipo_jogador': forms.Select(attrs={'class': 'form-select'}),
             'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'data_nascimento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
 
 class PresencaForm(forms.ModelForm):
