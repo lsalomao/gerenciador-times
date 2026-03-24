@@ -7,7 +7,6 @@ from .forms import JogadorForm, PresencaFormSet, PartidaForm
 from datetime import date, timedelta
 from collections import defaultdict
 import random
-import itertools
 import logging
 
 logger = logging.getLogger(__name__)
