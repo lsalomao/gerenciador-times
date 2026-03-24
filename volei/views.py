@@ -63,30 +63,24 @@ class JogadorDeleteView(DeleteView):
         return super().form_valid(form)
 
 def aniversariantes_mes(request):
-    mes = request.GET.get('mes')
-    if mes:
-        try:
-            mes = int(mes)
-        except ValueError:
-            mes = date.today().month
-    else:
-        mes = date.today().month
-
-    jogadores = Jogador.objects.filter(
-        data_nascimento__isnull=False,
-        data_nascimento__month=mes
-    ).order_by('data_nascimento__day', 'nome')
-
     MESES = [
         (1, 'Janeiro'), (2, 'Fevereiro'), (3, 'Março'), (4, 'Abril'),
         (5, 'Maio'), (6, 'Junho'), (7, 'Julho'), (8, 'Agosto'),
         (9, 'Setembro'), (10, 'Outubro'), (11, 'Novembro'), (12, 'Dezembro'),
     ]
 
+    jogadores = Jogador.objects.filter(
+        data_nascimento__isnull=False
+    ).order_by('data_nascimento__month', 'data_nascimento__day', 'nome')
+
+    meses_com_jogadores = []
+    for num, nome in MESES:
+        lista = [j for j in jogadores if j.data_nascimento.month == num]
+        meses_com_jogadores.append((nome, lista))
+
     return render(request, 'volei/aniversariantes.html', {
-        'jogadores': jogadores,
-        'mes_atual': mes,
-        'meses': MESES,
+        'meses_com_jogadores': meses_com_jogadores,
+        'mes_atual': date.today().month,
     })
 
 def presenca_list(request):

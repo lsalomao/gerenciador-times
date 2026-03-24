@@ -1,75 +1,45 @@
 {% extends 'volei/base.html' %}
 
-{% block title %}Aniversariantes do Mês{% endblock %}
+{% block title %}Aniversariantes{% endblock %}
 
 {% block content %}
-<div class="row mt-4">
-    <div class="col-md-8 offset-md-2">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="mb-0"><i class="bi bi-cake2"></i> Aniversariantes do Mês</h4>
-                <a href="{% url 'jogador_list' %}" class="btn btn-sm btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Jogadores
-                </a>
-            </div>
-            <div class="card-body">
-                <form method="get" class="mb-4">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-auto">
-                            <label for="mes" class="form-label">Selecionar mês</label>
-                            <select name="mes" id="mes" class="form-select">
-                                {% for num, nome in meses %}
-                                    <option value="{{ num }}" {% if num == mes_atual %}selected{% endif %}>{{ nome }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-auto">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-search"></i> Filtrar
-                            </button>
-                        </div>
-                    </div>
-                </form>
+<div class="mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-cake2"></i> Aniversariantes</h4>
+        <a href="{% url 'jogador_list' %}" class="btn btn-sm btn-secondary">
+            <i class="bi bi-arrow-left"></i> Jogadores
+        </a>
+    </div>
 
-                {% if jogadores %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th><i class="bi bi-cake"></i> Dia</th>
-                                    <th>Nome</th>
-                                    <th>Posição</th>
-                                    <th>Tipo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for jogador in jogadores %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-warning text-dark fs-6">
-                                            {{ jogador.data_nascimento|date:"d" }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <strong>{{ jogador.nome }}</strong>
-                                        {% if not jogador.ativo %}
-                                            <span class="badge bg-secondary ms-1">Inativo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ jogador.get_posicao_preferida_display|default:"-" }}</td>
-                                    <td>{{ jogador.get_tipo_jogador_display }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Nenhum aniversariante encontrado neste mês.
-                    </div>
-                {% endif %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {% for nome_mes, jogadores in meses_com_jogadores %}
+        <div class="col">
+            <div class="card h-100 {% if forloop.counter == mes_atual %}border-warning{% endif %}">
+                <div class="card-header {% if forloop.counter == mes_atual %}bg-warning text-dark{% else %}bg-light{% endif %}">
+                    <strong><i class="bi bi-calendar3"></i> {{ nome_mes }}</strong>
+                    {% if forloop.counter == mes_atual %}
+                        <span class="badge bg-dark ms-2">Mês atual</span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if jogadores %}
+                    <ul class="list-group list-group-flush">
+                        {% for jogador in jogadores %}
+                        <li class="list-group-item d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark" style="min-width:2rem;">
+                                {{ jogador.data_nascimento|date:"d" }}
+                            </span>
+                            <span>{{ jogador.nome }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">Nenhum aniversariante</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
