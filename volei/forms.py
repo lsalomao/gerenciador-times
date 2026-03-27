@@ -11,7 +11,7 @@ class JogadorForm(forms.ModelForm):
             'posicao_preferida': forms.Select(attrs={'class': 'form-select'}),
             'tipo_jogador': forms.Select(attrs={'class': 'form-select'}),
             'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'data_nascimento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'data_nascimento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
         }
 
 class PresencaForm(forms.ModelForm):
