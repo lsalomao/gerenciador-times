@@ -56,7 +56,7 @@ class Time(models.Model):
         return f"Time {self.nome} - {self.data}"
 
     def soma_niveis(self):
-        return sum(j.nivel for j in self.jogadores.all())
+        return sum(j.nivel for j in self.jogadores.all()) + sum(j.nivel for j in self.reservas.all())
 
 
 class Partida(models.Model):

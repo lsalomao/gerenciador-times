@@ -452,7 +452,7 @@ def gerar_times_simplificado(jogadores_confirmados, data_jogo):
             reservas.append(jogador)
 
     for jogador in reservas:
-        idx = min(range(num_times), key=lambda i: len(times[i]))
+        idx = min(range(num_times), key=lambda i: sum(j.nivel for j in times[i]))
         times[idx].append(jogador)
 
     times = validar_e_corrigir_nivel_minimo(times)

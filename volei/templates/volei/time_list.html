@@ -38,22 +38,18 @@
                         {% for time in times %}
                             <div class="col-md-6 mb-4">
                                 <div class="card border-primary">
-                                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                    <div class="card-header bg-primary text-white">
                                         <h5 class="mb-0">{{ time.nome }}</h5>
-                                        <span class="badge bg-light text-dark">Soma: {{ time.soma_niveis }}</span>
                                     </div>
                                     <div class="card-body">
                                         <h6 class="text-primary"><i class="bi bi-people-fill"></i> Titulares:</h6>
                                         <ul class="list-group mb-3">
                                             {% for jogador in time.jogadores.all %}
                                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        {{ jogador.nome }}
-                                                        {% if jogador.posicao_preferida %}
-                                                            <small class="text-muted">({{ jogador.get_posicao_preferida_display }})</small>
-                                                        {% endif %}
-                                                    </div>
-                                                    <span class="badge bg-info">Nível {{ jogador.nivel }}</span>
+                                                    <span>{{ jogador.nome }}</span>
+                                                    {% if jogador.posicao_preferida %}
+                                                        <small class="text-muted">{{ jogador.get_posicao_preferida_display }}</small>
+                                                    {% endif %}
                                                 </li>
                                             {% endfor %}
                                         </ul>
@@ -63,13 +59,10 @@
                                             <ul class="list-group mb-3">
                                                 {% for reserva in time.reservas.all %}
                                                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            {{ reserva.nome }}
-                                                            {% if reserva.posicao_preferida %}
-                                                                <small class="text-muted">({{ reserva.get_posicao_preferida_display }})</small>
-                                                            {% endif %}
-                                                        </div>
-                                                        <span class="badge bg-secondary">Nível {{ reserva.nivel }}</span>
+                                                        <span>{{ reserva.nome }}</span>
+                                                        {% if reserva.posicao_preferida %}
+                                                            <small class="text-muted">{{ reserva.get_posicao_preferida_display }}</small>
+                                                        {% endif %}
                                                     </li>
                                                 {% endfor %}
                                             </ul>
